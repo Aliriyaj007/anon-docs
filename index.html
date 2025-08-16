@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>AnonDocs - Minimal Writing App</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- ====== Sidebar ====== -->
+  <div id="sidebar">
+    <h2>Documents</h2>
+    <div id="docList"></div>
+    <button onclick="newDocument()">➕ New Document</button>
+  </div>
+
+  <!-- ====== Main Editor ====== -->
+  <div id="main">
+    <div id="toolbar">
+      <button onclick="formatDoc('bold')"><b>B</b></button>
+      <button onclick="formatDoc('italic')"><i>I</i></button>
+      <button onclick="formatDoc('underline')"><u>U</u></button>
+      <select onchange="formatDoc('fontName', this.value)">
+        <option value="Arial">Arial</option>
+        <option value="Georgia">Georgia</option>
+        <option value="Courier New">Courier</option>
+      </select>
+      <select onchange="formatDoc('fontSize', this.value)">
+        <option value="2">Small</option>
+        <option value="3" selected>Normal</option>
+        <option value="5">Large</option>
+        <option value="7">Huge</option>
+      </select>
+      <input type="color" onchange="formatDoc('foreColor', this.value)">
+      <button onclick="toggleTheme()">🌗 Theme</button>
+      <button onclick="saveDocument()">💾 Save</button>
+      <button onclick="secureShare()">🔒 Secure Share</button>
+    </div>
+    <div id="editor" contenteditable="true" placeholder="Start writing here..."></div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
