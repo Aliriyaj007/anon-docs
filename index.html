@@ -2,44 +2,154 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>AnonDocs - Minimal Writing App</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AnonDocs</title>
   <link rel="stylesheet" href="style.css">
 </head>
-<body>
-  <!-- ====== Sidebar ====== -->
-  <div id="sidebar">
-    <h2>Documents</h2>
-    <div id="docList"></div>
-    <button onclick="newDocument()">➕ New Document</button>
+<body class="light">
+  <div class="app-container">
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <h2>AnonDocs</h2>
+      <div id="document-list"></div>
+      <button id="new-doc-btn">+ New Document</button>
+    </aside>
+
+    <!-- Main Editor -->
+    <main class="editor-container">
+      <header class="toolbar">
+        <div class="formatting">
+          <button onclick="format('bold')"><b>B</b></button>
+          <button onclick="format('italic')"><i>I</i></button>
+          <button onclick="format('underline')"><u>U</u></button>
+          <select onchange="formatFont(this.value)">
+            <option value="Arial">Arial</option>
+            <option value="Georgia">Georgia</option>
+            <option value="Courier New">Courier</option>
+            <option value="Times New Roman">Times</option>
+          </select>
+          <select onchange="formatSize(this.value)">
+            <option value="3">Normal</option>
+            <option value="4">Large</option>
+            <option value="5">X-Large</option>
+            <option value="6">XX-Large</option>
+          </select>
+          <input type="color" onchange="formatColor(this.value)">
+        </div>
+        <div class="actions">
+          <button onclick="saveDoc()">💾 Save</button>
+          <button onclick="shareDoc()">🔐 Share</button>
+          <button id="theme-toggle">🌙</button>
+        </div>
+      </header>
+
+      <div id="editor" contenteditable="true" class="editor-area"></div>
+    </main>
   </div>
 
-  <!-- ====== Main Editor ====== -->
-  <div id="main">
-    <div id="toolbar">
-      <button onclick="formatDoc('bold')"><b>B</b></button>
-      <button onclick="formatDoc('italic')"><i>I</i></button>
-      <button onclick="formatDoc('underline')"><u>U</u></button>
-      <select onchange="formatDoc('fontName', this.value)">
-        <option value="Arial">Arial</option>
-        <option value="Georgia">Georgia</option>
-        <option value="Courier New">Courier</option>
-      </select>
-      <select onchange="formatDoc('fontSize', this.value)">
-        <option value="2">Small</option>
-        <option value="3" selected>Normal</option>
-        <option value="5">Large</option>
-        <option value="7">Huge</option>
-      </select>
-      <input type="color" onchange="formatDoc('foreColor', this.value)">
-      <button onclick="toggleTheme()">🌗 Theme</button>
-      <button onclick="saveDocument()">💾 Save</button>
-      <button onclick="secureShare()">🔒 Secure Share</button>
-      <button onclick="openShared()">🔓 Open Shared</button>
-    </div>
-    <div id="editor" contenteditable="true" placeholder="Start writing here..."></div>
-  </div>
+  <!-- Snackbar for copied message -->
+  <div id="snackbar">Link copied to clipboard!</div>
 
-  <script src="app.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+  <script>
+    // ===== Document Management =====
+    let documents = JSON.parse(localStorage.getItem("docs")) || {};
+    let currentDoc = null;
+
+    const docList = document.getElementById("document-list");
+    const editor = document.getElementById("editor");
+
+    function renderList() {
+      docList.innerHTML = "";
+      for (let id in documents) {
+        let div = document.createElement("div");
+        div.className = "doc-item";
+        div.textContent = documents[id].title || "Untitled";
+        div.onclick = () => loadDoc(id);
+        docList.appendChild(div);
+      }
+    }
+
+    function newDoc() {
+      const id = Date.now().toString();
+      documents[id] = { title: "Untitled", content: "" };
+      currentDoc = id;
+      editor.innerHTML = "";
+      saveToStorage();
+      renderList();
+    }
+
+    function loadDoc(id) {
+      currentDoc = id;
+      editor.innerHTML = documents[id].content;
+    }
+
+    function saveDoc() {
+      if (!currentDoc) newDoc();
+      documents[currentDoc].content = editor.innerHTML;
+      documents[currentDoc].title = editor.innerText.slice(0, 20) || "Untitled";
+      saveToStorage();
+      renderList();
+      alert("Document saved!");
+    }
+
+    function saveToStorage() {
+      localStorage.setItem("docs", JSON.stringify(documents));
+    }
+
+    // ===== Formatting =====
+    function format(cmd) { document.execCommand(cmd, false, null); }
+    function formatFont(font) { document.execCommand("fontName", false, font); }
+    function formatSize(size) { document.execCommand("fontSize", false, size); }
+    function formatColor(color) { document.execCommand("foreColor", false, color); }
+
+    // ===== Secure Sharing =====
+    function shareDoc() {
+      if (!currentDoc) { alert("Save document first!"); return; }
+      const password = prompt("Set a password to protect this document:");
+      if (!password) return;
+
+      const data = btoa(JSON.stringify({
+        content: editor.innerHTML,
+        password
+      }));
+      const url = window.location.origin + window.location.pathname + "?doc=" + data;
+
+      // Copy to clipboard automatically
+      navigator.clipboard.writeText(url).then(() => {
+        showSnackbar();
+      });
+    }
+
+    function showSnackbar() {
+      const x = document.getElementById("snackbar");
+      x.className = "show";
+      setTimeout(() => { x.className = x.className.replace("show", ""); }, 2500);
+    }
+
+    // Load shared doc if present
+    window.onload = () => {
+      const params = new URLSearchParams(window.location.search);
+      if (params.has("doc")) {
+        const raw = atob(params.get("doc"));
+        const obj = JSON.parse(raw);
+        const input = prompt("Enter password to unlock document:");
+        if (input === obj.password) {
+          editor.innerHTML = obj.content;
+        } else {
+          alert("Wrong password!");
+        }
+      }
+      renderList();
+    };
+
+    // ===== Theme Toggle =====
+    document.getElementById("theme-toggle").onclick = () => {
+      document.body.classList.toggle("dark");
+      document.body.classList.toggle("light");
+    };
+
+    document.getElementById("new-doc-btn").onclick = newDoc;
+  </script>
 </body>
 </html>
