@@ -1,193 +1,96 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>AnonDocs — Private & Anonymous</title>
+/* styles.css - polished, responsive "hacker" visual + other themes */
 
-  <link rel="stylesheet" href="styles.css">
+/* Reset */
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; background:#060606;color:#c7f2c7}
 
-  <!-- CryptoJS for AES encryption -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
-  <script src="script.js" defer></script>
-</head>
-<body>
-  <!-- Top bar -->
-  <header class="topbar">
-    <div class="left">
-      <button id="menuToggle" class="icon" title="Toggle documents sidebar">☰</button>
-      <div class="brand">AnonDocs</div>
-      <input id="titleInput" class="title" placeholder="Untitled (click to rename)" />
-    </div>
+/* theme variables (applied via html class) */
+:root{
+  --bg:#060606; --panel:#07120a; --panel2:#051009; --muted:#7fbf7f; --text:#c7f2c7; --accent:#39ff14;
+  --page:#020602; --page-text:#cfeacc; --border:#09320b; --radius:10px;
+}
+html.light{
+  --bg:#f6f8fb; --panel:#ffffff; --panel2:#f1f3f8; --muted:#556274; --text:#0a0b0d; --accent:#2463ff;
+  --page:#ffffff; --page-text:#111; --border:#e6ebf3;
+}
+html.cyber{
+  --bg:#eaf7ff; --panel:#021b2e; --panel2:#072c42; --muted:#a7d7ff; --text:#e7f8ff; --accent:#00b0ff;
+  --page:#001827; --page-text:#bde8ff; --border:#023047;
+}
+html.hacker{
+  --bg:#000; --panel:#001000; --panel2:#001600; --muted:#3aff6b; --text:#9eff9e; --accent:#39ff14;
+  --page:#000; --page-text:#39ff14; --border:#002301;
+}
 
-    <div class="right">
-      <select id="themeSelect" title="Theme" class="theme-select">
-        <option value="hacker">Hacker (Green)</option>
-        <option value="dark">Dark</option>
-        <option value="cyber">Cyber Blue</option>
-        <option value="light">Light</option>
-      </select>
+/* global */
+body{background:var(--bg);color:var(--text);padding-bottom:36px}
+a{color:var(--accent)}
 
-      <select id="fontSelect" title="Font">
-        <option value="Inter, system-ui, sans-serif">Inter</option>
-        <option value="Arial, Helvetica, sans-serif">Arial</option>
-        <option value="'Fira Code', 'Courier New', monospace">Fira Code (mono)</option>
-        <option value="'Source Code Pro', 'Courier New', monospace">Source Code Pro (mono)</option>
-        <option value="'Courier New', monospace">Courier New</option>
-      </select>
+/* topbar */
+.topbar{position:sticky;top:0;z-index:60;display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--panel);border-bottom:1px solid var(--border)}
+.left{display:flex;align-items:center;gap:10px}
+.brand{font-weight:700;font-size:1.02rem}
+.title{background:transparent;border:1px solid transparent;padding:6px 10px;border-radius:8px;color:var(--text);min-width:200px}
+.title:focus{outline:none;border-color:var(--border);background:var(--panel2)}
 
-      <button id="newBtn" class="btn" title="New document">New</button>
-      <button id="saveBtn" class="btn" title="Save">Save</button>
-      <button id="shareBtn" class="btn primary" title="Share">Share</button>
-    </div>
-  </header>
+/* controls */
+.right{display:flex;align-items:center;gap:8px}
+.btn,.small,.tbtn{background:transparent;border:1px solid var(--border);color:var(--muted);padding:6px 10px;border-radius:8px;cursor:pointer}
+.btn:hover,.tbtn:hover,.small:hover{background:var(--panel2);color:var(--text)}
+.primary{background:var(--accent);color:#001;border:none;padding:8px 12px;border-radius:999px;font-weight:600}
 
-  <!-- Toolbar -->
-  <div class="toolbar" id="toolbar">
-    <select id="blockSelect" title="Paragraph / Headings">
-      <option value="P">Normal</option>
-      <option value="H1">Heading 1</option>
-      <option value="H2">Heading 2</option>
-      <option value="H3">Heading 3</option>
-    </select>
+/* toolbar */
+.toolbar{display:flex;gap:8px;padding:10px;background:var(--panel);border-bottom:1px solid var(--border);align-items:center;overflow:auto}
+.toolbar select,.toolbar input[type=color]{background:var(--panel2);border:1px solid var(--border);padding:6px;border-radius:8px;color:var(--text)}
+.upload input{display:none}
+.toolbar-right{margin-left:auto;display:flex;gap:8px;align-items:center}
 
-    <button data-cmd="bold" class="tbtn" title="Bold">B</button>
-    <button data-cmd="italic" class="tbtn" title="Italic">I</button>
-    <button data-cmd="underline" class="tbtn" title="Underline">U</button>
-    <button data-cmd="strikeThrough" class="tbtn" title="Strike">S</button>
+/* layout */
+.layout{display:grid;grid-template-columns:260px 1fr;gap:16px;padding:16px}
+.sidebar{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:10px;height:calc(100vh - 190px);overflow:auto}
+.sidebar-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.docs-list{display:flex;flex-direction:column;gap:8px}
+.doc-item{padding:10px;border-radius:8px;cursor:pointer;border:1px solid transparent;color:var(--text)}
+.doc-item:hover{background:var(--panel2)}
+.doc-item.active{border-color:var(--accent);box-shadow:0 8px 28px rgba(0,0,0,.5)}
 
-    <input id="foreColor" type="color" title="Text color" />
-    <input id="hiliteColor" type="color" title="Highlight" />
+/* editor */
+.main{display:flex;flex-direction:column;align-items:center}
+.page{width:820px;max-width:96vw;min-height:640px;background:var(--page);color:var(--page-text);margin:8px auto;padding:48px;border-radius:12px;box-shadow:0 18px 60px rgba(0,0,0,.55)}
+.editor{min-height:520px;outline:none;font-size:16px;line-height:1.6;color:var(--page-text)}
+.editor:empty:before{content:attr(placeholder);color:var(--muted)}
 
-    <button data-cmd="insertUnorderedList" class="tbtn" title="Bulleted list">•</button>
-    <button data-cmd="insertOrderedList" class="tbtn" title="Numbered list">1.</button>
-    <button data-cmd="outdent" class="tbtn" title="Outdent">«</button>
-    <button data-cmd="indent" class="tbtn" title="Indent">»</button>
+/* status & footer */
+.statusbar{width:100%;max-width:920px;display:flex;justify-content:space-between;color:var(--muted);margin:6px auto 20px;padding:0 8px}
+#madeby{font-size:0.95rem;opacity:.95}
 
-    <button id="linkBtn" class="tbtn" title="Insert link">🔗</button>
-    <label class="tbtn upload" title="Insert image">🖼<input id="imgInput" type="file" accept="image/*" /></label>
+/* modals & viewer */
+.modal{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.5);z-index:120}
+.modal.hidden{display:none}
+.modal-card{width:min(720px,94vw);background:var(--panel);padding:16px;border-radius:12px;border:1px solid var(--border);color:var(--text)}
+.viewer-card{width:min(980px,96vw);max-height:88vh;overflow:auto;background:var(--page);color:var(--page-text);padding:14px;border-radius:10px}
 
-    <div class="toolbar-right">
-      <button id="findBtn" class="btn" title="Find">Find</button>
-      <button id="exportBtn" class="btn" title="Export TXT / Backup">Export</button>
-      <button id="importBtn" class="btn" title="Import TXT / Backup">Import</button>
-      <button id="printBtn" class="btn" title="Print">Print</button>
-      <button id="manageBtn" class="btn" title="Manage shared links">Shared Links</button>
-    </div>
-  </div>
+/* shared list */
+.shared-list{display:flex;flex-direction:column;gap:10px;max-height:60vh;overflow:auto}
+.shared-item{display:flex;justify-content:space-between;padding:10px;background:var(--panel2);border-radius:10px;border:1px solid var(--border);color:var(--text)}
 
-  <!-- Layout -->
-  <div class="layout">
-    <!-- Sidebar -->
-    <aside id="sidebar" class="sidebar">
-      <div class="sidebar-head">
-        <div>Documents</div>
-        <div class="small-actions">
-          <button id="newSide" class="small">+ New</button>
-        </div>
-      </div>
-      <div id="docsList" class="docs-list"></div>
-    </aside>
+/* toasts & tooltip */
+.toasts{position:fixed;right:18px;bottom:18px;display:flex;flex-direction:column;gap:8px;z-index:140}
+.toast{background:var(--panel);border:1px solid var(--border);padding:10px 14px;border-radius:8px;color:var(--text);box-shadow:0 8px 24px rgba(0,0,0,.6)}
+.tooltip{position:absolute;background:var(--panel);color:var(--muted);padding:8px 10px;border-radius:8px;border:1px solid var(--border);width:220px;transform:translateY(6px);z-index:150}
+.tooltip.hidden{display:none}
 
-    <!-- Editor -->
-    <main class="main">
-      <div id="page" class="page">
-        <div id="editor" class="editor" contenteditable="true" spellcheck="true" placeholder="Start writing..."></div>
-      </div>
-
-      <footer class="statusbar">
-        <div id="stats">0 words · 0 chars</div>
-        <div id="madeby">Made by Riyajul Ali</div>
-      </footer>
-    </main>
-  </div>
-
-  <!-- Share Modal -->
-  <div id="shareModal" class="modal hidden">
-    <div class="modal-card">
-      <h3>Share document</h3>
-
-      <div class="form-row">
-        <label>Expires in:
-          <select id="shareExpiry">
-            <option value="0">Never</option>
-            <option value="1">1 day</option>
-            <option value="7" selected>7 days</option>
-            <option value="30">30 days</option>
-          </select>
-        </label>
-      </div>
-
-      <div class="form-row">
-        <label><input id="sharePublic" type="checkbox" /> Public (no password)</label>
-      </div>
-
-      <div class="form-row" id="passwordRow">
-        <label>Password:
-          <input id="sharePassword" type="password" placeholder="Enter password for private link" />
-        </label>
-      </div>
-
-      <div class="row actions">
-        <button id="genShare" class="primary">Generate</button>
-        <button class="ghost" onclick="closeModal('shareModal')">Cancel</button>
-      </div>
-
-      <hr />
-
-      <div id="shareResult" class="hidden">
-        <label>URL</label>
-        <input id="shareUrl" readonly />
-        <div class="row actions">
-          <button id="copyShare" class="small">Copy</button>
-          <button class="ghost" onclick="closeModal('shareModal')">Close</button>
-        </div>
-        <div id="shareInfo" class="meta"></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Manage shared links -->
-  <div id="manageModal" class="modal hidden">
-    <div class="modal-card">
-      <h3>Shared links</h3>
-      <div id="sharedList" class="shared-list"></div>
-      <div class="row actions">
-        <button class="ghost" onclick="closeModal('manageModal')">Close</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Viewer (open shared) -->
-  <div id="viewer" class="modal hidden">
-    <div class="viewer-card">
-      <div class="viewer-head">
-        <div id="viewerTitle">Shared document</div>
-        <div>
-          <button id="viewerSave" class="small">Save copy</button>
-          <button class="ghost" onclick="closeModal('viewer')">Close</button>
-        </div>
-      </div>
-      <div id="viewerContent" class="viewer-content"></div>
-    </div>
-  </div>
-
-  <!-- Password modal for opening private share -->
-  <div id="pwModal" class="modal hidden">
-    <div class="modal-card">
-      <h3>Enter password</h3>
-      <div class="form-row">
-        <input id="openPassword" type="password" placeholder="Password" />
-      </div>
-      <div class="row actions">
-        <button id="openShareBtn" class="primary">Open</button>
-        <button class="ghost" onclick="closeModal('pwModal')">Cancel</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Toaster and tooltip -->
-  <div id="toasts" class="toasts"></div>
-  <div id="tooltip" class="tooltip hidden"></div>
-</body>
-</html>
+/* responsive */
+@media (max-width: 980px){
+  .layout{grid-template-columns:0 1fr}
+  .sidebar{position:fixed;left:8px;top:96px;bottom:12px;transform:translateX(-120%);transition:transform .22s}
+  .sidebar.open{transform:translateX(0)}
+  .page{width:94vw;padding:28px}
+}
+@media (max-width:560px){
+  .topbar{flex-direction:column;align-items:stretch;gap:8px}
+  .title{width:48vw}
+  .toolbar{overflow:auto;padding:6px}
+  .page{padding:22px}
+}
