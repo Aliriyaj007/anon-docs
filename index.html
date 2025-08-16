@@ -5,102 +5,102 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>AnonDocs — Private & Anonymous</title>
 
-  <!-- Google fonts -->
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Fira+Code:wght@400;700&display=swap" rel="stylesheet">
-
-  <link rel="stylesheet" href="styles.css">
+  <!-- Quill (rich text editor) -->
+  <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+  <!-- App styles -->
+  <link rel="stylesheet" href="style.css">
 
   <!-- CryptoJS for AES encryption -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+  <!-- Quill JS -->
+  <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
 
-  <!-- App logic -->
   <script src="script.js" defer></script>
 </head>
 <body>
-  <header class="topbar" role="banner">
+  <header class="topbar">
     <div class="left">
-      <button id="menuToggle" class="icon" data-tip="Toggle sidebar">☰</button>
+      <button id="menuToggle" class="icon" title="Toggle sidebar">☰</button>
       <div class="brand">AnonDocs</div>
-      <input id="titleInput" class="doc-title" placeholder="Untitled (click to rename)" />
+      <input id="titleInput" class="title" placeholder="Untitled document" title="Click to rename" />
     </div>
 
     <div class="right">
-      <select id="themeSelect" class="control" data-tip="Theme (hacker/dark/cyber/light)">
+      <select id="themeSelect" class="control" title="Switch theme">
         <option value="hacker">Hacker (Green)</option>
         <option value="dark">Dark</option>
         <option value="cyber">Cyber Blue</option>
         <option value="light">Light</option>
       </select>
 
-      <select id="fontSelect" class="control" data-tip="Font family">
+      <select id="fontSelect" class="control" title="Font family">
         <option value="Inter, system-ui, -apple-system, 'Segoe UI', Roboto">Inter</option>
         <option value="Arial, Helvetica, sans-serif">Arial</option>
         <option value="'Fira Code', monospace">Fira Code (Mono)</option>
+        <option value="'Source Sans 3', system-ui">Source Sans</option>
         <option value="'Courier New', monospace">Courier New</option>
       </select>
 
-      <button id="newBtn" class="btn" data-tip="New document (Ctrl/Cmd+N)">New</button>
-      <button id="saveBtn" class="btn" data-tip="Save (Ctrl/Cmd+S)">Save</button>
-      <button id="shareBtn" class="btn primary" data-tip="Share document">Share</button>
+      <button id="newBtn" class="btn" title="New document (Ctrl/Cmd+N)">New</button>
+      <button id="saveBtn" class="btn" title="Save (Ctrl/Cmd+S)">Save</button>
+      <button id="shareBtn" class="btn primary" title="Share">Share</button>
     </div>
   </header>
 
-  <!-- Toolbar -->
-  <div id="toolbar" class="toolbar" role="toolbar" aria-label="Editor toolbar">
-    <select id="blockSelect" class="small" data-tip="Paragraph / Headings">
-      <option value="P">Normal</option>
-      <option value="H1">Heading 1</option>
-      <option value="H2">Heading 2</option>
-      <option value="H3">Heading 3</option>
-    </select>
+  <!-- Rich editor toolbar (Quill) -->
+  <div id="toolbar" class="toolbar">
+    <select class="ql-font"></select>
+    <select class="ql-size"></select>
+    <button class="ql-bold" title="Bold"></button>
+    <button class="ql-italic" title="Italic"></button>
+    <button class="ql-underline" title="Underline"></button>
+    <button class="ql-strike" title="Strike"></button>
 
-    <select id="sizeSelect" class="small" data-tip="Font size">
-      <option value="2">Small</option>
-      <option value="3" selected>Normal</option>
-      <option value="4">Large</option>
-      <option value="5">X-Large</option>
-    </select>
+    <select class="ql-color" title="Text color"></select>
+    <select class="ql-background" title="Background"></select>
 
-    <button class="tool" data-cmd="bold" data-tip="Bold (Ctrl/Cmd+B)"><b>B</b></button>
-    <button class="tool" data-cmd="italic" data-tip="Italic (Ctrl/Cmd+I)"><i>I</i></button>
-    <button class="tool" data-cmd="underline" data-tip="Underline (Ctrl/Cmd+U)"><u>U</u></button>
-    <button class="tool" data-cmd="strikeThrough" data-tip="Strike-through">S</button>
+    <button class="ql-header" value="1" title="H1"></button>
+    <button class="ql-header" value="2" title="H2"></button>
 
-    <input id="foreColor" type="color" class="color" data-tip="Text color" />
-    <input id="hiliteColor" type="color" class="color" data-tip="Highlight color" />
+    <button class="ql-list" value="ordered" title="Numbered list"></button>
+    <button class="ql-list" value="bullet" title="Bulleted list"></button>
+    <button class="ql-blockquote" title="Quote"></button>
+    <button class="ql-code-block" title="Code block"></button>
 
-    <button class="tool" data-cmd="insertUnorderedList" data-tip="Bulleted list">•</button>
-    <button class="tool" data-cmd="insertOrderedList" data-tip="Numbered list">1.</button>
-    <button class="tool" data-cmd="outdent" data-tip="Outdent">«</button>
-    <button class="tool" data-cmd="indent" data-tip="Indent">»</button>
+    <button class="ql-link" title="Insert link"></button>
+    <button class="ql-image" title="Insert image"></button>
+    <button class="ql-align" value="" title="Align left"></button>
+    <button class="ql-align" value="center" title="Align center"></button>
+    <button class="ql-align" value="right" title="Align right"></button>
 
-    <button id="linkBtn" class="tool" data-tip="Insert/edit link (Ctrl/Cmd+K)">🔗</button>
-    <label class="tool upload" data-tip="Insert image"><span>🖼</span><input id="imgInput" type="file" accept="image/*" /></label>
+    <div class="toolbar-spacer"></div>
 
-    <div class="toolbar-filler"></div>
+    <button id="undoBtn" class="btn" title="Undo">↶</button>
+    <button id="redoBtn" class="btn" title="Redo">↷</button>
 
-    <button id="undoBtn" class="btn" data-tip="Undo (Ctrl/Cmd+Z)">↶</button>
-    <button id="redoBtn" class="btn" data-tip="Redo (Ctrl/Cmd+Y)">↷</button>
-    <button id="findBtn" class="btn" data-tip="Find">Find</button>
-    <button id="exportBtn" class="btn" data-tip="Export TXT & backup JSON">Export</button>
-    <button id="importBtn" class="btn" data-tip="Import TXT / backup JSON">Import</button>
-    <button id="printBtn" class="btn" data-tip="Print document">Print</button>
-    <button id="manageBtn" class="btn" data-tip="Manage shared links">Shared Links</button>
+    <button id="exportBtn" class="btn" title="Export JSON backup">Export</button>
+    <button id="importBtn" class="btn" title="Import JSON backup">Import</button>
+    <button id="printBtn" class="btn" title="Print document">Print</button>
+    <button id="linksBtn" class="btn" title="Manage shared links">Shared Links</button>
   </div>
 
-  <!-- Main layout -->
   <div class="layout">
     <aside id="sidebar" class="sidebar">
       <div class="sidebar-head">
-        <h4>Documents</h4>
-        <div><button id="newSide" class="small">+ New</button></div>
+        <strong>Documents</strong>
+        <div><button id="newSide" class="small" title="New document">+ New</button></div>
+      </div>
+      <div class="search-wrap">
+        <input id="searchInput" placeholder="Search documents..." title="Search saved documents" />
       </div>
       <div id="docsList" class="docs-list" aria-live="polite"></div>
     </aside>
 
     <main class="main">
       <div id="page" class="page">
-        <div id="editor" class="editor" contenteditable="true" spellcheck="true" placeholder="Start writing your private document..."></div>
+        <div id="editor-container">
+          <div id="quillEditor"></div>
+        </div>
       </div>
 
       <footer class="statusbar">
@@ -110,12 +110,12 @@
     </main>
   </div>
 
-  <!-- Share modal -->
-  <div id="shareModal" class="modal hidden" role="dialog" aria-modal="true">
+  <!-- Share Modal -->
+  <div id="shareModal" class="modal hidden" aria-hidden="true">
     <div class="modal-card">
       <h3>Share document</h3>
       <div class="form-row">
-        <label>Expires in:
+        <label>Expires:
           <select id="shareExpiry">
             <option value="0">Never</option>
             <option value="1">1 day</option>
@@ -124,19 +124,14 @@
           </select>
         </label>
       </div>
-
       <div class="form-row">
         <label><input id="sharePublic" type="checkbox" /> Public (no password)</label>
       </div>
-
       <div class="form-row" id="passwordRow">
-        <label>Password:
-          <input id="sharePassword" type="password" placeholder="Enter password for private link" />
-        </label>
+        <label>Password: <input id="sharePassword" type="password" placeholder="Set password for private link" /></label>
       </div>
-
-      <div class="form-actions">
-        <button id="genShare" class="primary">Generate link</button>
+      <div class="row actions">
+        <button id="generateShareBtn" class="primary">Generate Link</button>
         <button class="ghost" onclick="closeModal('shareModal')">Cancel</button>
       </div>
 
@@ -144,55 +139,56 @@
         <label>Share URL</label>
         <input id="shareUrl" readonly />
         <div class="row actions">
-          <button id="copyShare" class="small">Copy</button>
+          <button id="copyShareBtn" class="small">Copy</button>
           <button class="ghost" onclick="closeModal('shareModal')">Close</button>
         </div>
-        <div id="shareInfo" class="meta"></div>
+        <div id="shareMeta" class="meta"></div>
       </div>
     </div>
   </div>
 
-  <!-- Manage shared links -->
-  <div id="manageModal" class="modal hidden" role="dialog" aria-modal="true">
+  <!-- Manage shared links modal -->
+  <div id="manageModal" class="modal hidden">
     <div class="modal-card">
-      <h3>Shared links</h3>
+      <h3>Shared Links</h3>
       <div id="sharedList" class="shared-list"></div>
-      <div class="form-actions">
-        <button class="ghost" onclick="closeModal('manageModal')">Close</button>
+      <div class="row actions"><button class="ghost" onclick="closeModal('manageModal')">Close</button></div>
+    </div>
+  </div>
+
+  <!-- Password modal -->
+  <div id="passwordModal" class="modal hidden">
+    <div class="modal-card">
+      <h3>Enter password</h3>
+      <div class="form-row">
+        <input id="openPassword" type="password" placeholder="Password" />
+      </div>
+      <div class="row actions">
+        <button id="openPwdBtn" class="primary">Open</button>
+        <button class="ghost" onclick="closeModal('passwordModal')">Cancel</button>
       </div>
     </div>
   </div>
 
-  <!-- Viewer modal -->
-  <div id="viewerModal" class="modal hidden" role="dialog" aria-modal="true">
+  <!-- Viewer -->
+  <div id="viewer" class="modal hidden">
     <div class="viewer-card">
       <div class="viewer-head">
-        <div id="viewerTitle">Shared document</div>
+        <div id="viewerTitle">Shared Document</div>
         <div>
-          <button id="viewerSave" class="small">Save copy</button>
-          <button class="ghost" onclick="closeModal('viewerModal')">Close</button>
+          <button id="viewerSaveBtn" class="small">Save Copy</button>
+          <button class="ghost" onclick="closeModal('viewer')">Close</button>
         </div>
       </div>
       <div id="viewerContent" class="viewer-content"></div>
     </div>
   </div>
 
-  <!-- Password modal -->
-  <div id="pwModal" class="modal hidden" role="dialog" aria-modal="true">
-    <div class="modal-card">
-      <h3>Enter password</h3>
-      <div class="form-row">
-        <input id="openPassword" type="password" placeholder="Password" />
-      </div>
-      <div class="form-actions">
-        <button id="openShareBtn" class="primary">Open</button>
-        <button class="ghost" onclick="closeModal('pwModal')">Cancel</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- toasts & tooltip -->
-  <div id="toasts" class="toasts" aria-live="polite"></div>
+  <!-- Toasts and tooltip -->
+  <div id="toasts" class="toasts"></div>
   <div id="tooltip" class="tooltip hidden"></div>
+
+  <!-- Hidden file inputs -->
+  <input id="importFile" type="file" accept="application/json" hidden />
 </body>
 </html>
