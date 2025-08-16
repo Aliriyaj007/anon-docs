@@ -1,204 +1,647 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>AnonDocs</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="stylesheet" href="style.css" />
-  <!-- AES for password-protected sharing (pure JS, CDN) -->
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>AnonDocs — Minimal, Private Docs</title>
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="style.css">
+
+  <!-- CryptoJS for AES (required for private links) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js" defer></script>
-  <script src="app.js" defer></script>
+  <!-- App logic included at bottom -->
 </head>
 <body>
-  <!-- ===== App Bar ===== -->
-  <header class="appbar">
+  <!-- Top App Bar -->
+  <header class="topbar">
     <div class="left">
-      <button class="icon-btn" id="menuToggle" title="Docs (toggle)">☰</button>
+      <button id="menu-toggle" class="icon" data-tip-key="menu" data-tip="Open documents sidebar">☰</button>
       <div class="brand">AnonDocs</div>
-      <input id="docTitle" class="doc-title" placeholder="Untitled document" />
-      <nav class="menubar">
-        <button class="menu-btn" data-menu="fileMenu">File ▾</button>
-        <button class="menu-btn" data-menu="editMenu">Edit ▾</button>
-        <button class="menu-btn" data-menu="viewMenu">View ▾</button>
-        <button class="menu-btn" data-menu="insertMenu">Insert ▾</button>
-        <button class="menu-btn" data-menu="formatMenu">Format ▾</button>
-      </nav>
+      <input id="title" class="doc-title" placeholder="Untitled document" />
+
+      <div class="menugroup">
+        <button class="btn subtle" id="new-btn" data-tip-key="new" data-tip="New document">New</button>
+        <button class="btn subtle" id="save-btn" data-tip-key="save" data-tip="Save document (Ctrl/Cmd+S)">Save</button>
+        <button class="btn subtle" id="print-btn" data-tip-key="print" data-tip="Print document">Print</button>
+        <button class="btn subtle" id="share-btn" data-tip-key="share" data-tip="Share (password-protected link)">Share</button>
+        <button class="btn subtle" id="manage-shares-btn" data-tip-key="manage" data-tip="Manage shared links">Shared Links</button>
+      </div>
     </div>
+
     <div class="right">
-      <span id="autosaveBadge" class="badge">Saved</span>
-      <button id="themeToggle" class="pill">☀️ / 🌙</button>
-      <button id="shareBtn" class="primary">Share</button>
-    </div>
-
-    <!-- Menus -->
-    <div id="fileMenu" class="menu">
-      <button onclick="newDocument()">New</button>
-      <button onclick="saveDocument()">Save</button>
-      <hr />
-      <button onclick="exportHTML()">Download as HTML</button>
-      <button onclick="exportTXT()">Download as TXT</button>
-      <hr />
-      <button onclick="exportBackup()">Export All (JSON)</button>
-      <label class="upload">Import Backup (JSON)
-        <input type="file" accept="application/json" onchange="importBackup(event)" />
-      </label>
-      <hr />
-      <button onclick="printDocument()">Print</button>
-    </div>
-
-    <div id="editMenu" class="menu">
-      <button onclick="cmd('undo')">Undo</button>
-      <button onclick="cmd('redo')">Redo</button>
-      <hr />
-      <button onclick="openFind()">Find & Replace</button>
-      <button onclick="cmd('selectAll')">Select All</button>
-      <button onclick="clearFormatting()">Clear Formatting</button>
-    </div>
-
-    <div id="viewMenu" class="menu">
-      <button onclick="setZoom(0.9)">Zoom -</button>
-      <button onclick="setZoom(1.0)">Zoom 100%</button>
-      <button onclick="setZoom(1.1)">Zoom +</button>
-      <hr />
-      <button onclick="togglePageShade()">Toggle Page Shadow</button>
-    </div>
-
-    <div id="insertMenu" class="menu">
-      <button onclick="insertLink()">Link</button>
-      <label class="upload">Image
-        <input type="file" accept="image/*" onchange="insertImage(event)" />
-      </label>
-      <button onclick="insertDate()">Date/Time</button>
-      <button onclick="insertDivider()">Divider</button>
-    </div>
-
-    <div id="formatMenu" class="menu">
-      <button onclick="cmd('bold')"><b>Bold</b></button>
-      <button onclick="cmd('italic')"><i>Italic</i></button>
-      <button onclick="cmd('underline')"><u>Underline</u></button>
-      <button onclick="cmd('strikeThrough')"><s>Strike</s></button>
-      <hr />
-      <button onclick="block('P')">Normal text</button>
-      <button onclick="block('H1')">Heading 1</button>
-      <button onclick="block('H2')">Heading 2</button>
-      <button onclick="block('H3')">Heading 3</button>
-      <hr />
-      <button onclick="cmd('insertUnorderedList')">• Bulleted list</button>
-      <button onclick="cmd('insertOrderedList')">1. Numbered list</button>
-      <button onclick="cmd('outdent')">Outdent</button>
-      <button onclick="cmd('indent')">Indent</button>
-      <hr />
-      <button onclick="cmd('justifyLeft')">Align Left</button>
-      <button onclick="cmd('justifyCenter')">Align Center</button>
-      <button onclick="cmd('justifyRight')">Align Right</button>
-      <button onclick="cmd('justifyFull')">Justify</button>
-      <hr />
-      <button onclick="setLineHeight(1.15)">Line spacing 1.15</button>
-      <button onclick="setLineHeight(1.5)">Line spacing 1.5</button>
-      <button onclick="setLineHeight(2)">Line spacing 2.0</button>
+      <div id="autosave" class="badge">Saved</div>
+      <button id="theme-toggle" class="btn pill" data-tip-key="theme" data-tip="Toggle light / dark theme">Theme</button>
     </div>
   </header>
 
-  <!-- ===== Formatting Toolbar ===== -->
-  <div class="toolbar">
-    <button class="icon-btn" title="Undo" onclick="cmd('undo')">↶</button>
-    <button class="icon-btn" title="Redo" onclick="cmd('redo')">↷</button>
-    <span class="sep"></span>
-
-    <select id="styleBlock" onchange="block(this.value)">
+  <!-- Formatting toolbar -->
+  <div class="toolbar" id="toolbar">
+    <select id="styleBlock" title="Style" data-tip-key="style" data-tip="Paragraph / Headings">
       <option value="P">Normal</option>
       <option value="H1">Heading 1</option>
       <option value="H2">Heading 2</option>
       <option value="H3">Heading 3</option>
     </select>
 
-    <select id="fontFamily" onchange="cmd('fontName', this.value)">
-      <option>Arial</option>
-      <option>Georgia</option>
-      <option>Times New Roman</option>
-      <option>Courier New</option>
-      <option>Verdana</option>
-      <option>Inter</option>
-    </select>
+    <button class="icon" onclick="execCmd('bold')" data-tip-key="bold" data-tip="Bold (Ctrl/Cmd+B)"><b>B</b></button>
+    <button class="icon" onclick="execCmd('italic')" data-tip-key="italic" data-tip="Italic (Ctrl/Cmd+I)"><i>I</i></button>
+    <button class="icon" onclick="execCmd('underline')" data-tip-key="underline" data-tip="Underline (Ctrl/Cmd+U)"><u>U</u></button>
+    <button class="icon" onclick="execCmd('strikeThrough')" data-tip-key="strike" data-tip="Strike-through">S</button>
 
-    <select id="fontSize" onchange="cmd('fontSize', this.value)">
-      <option value="2">Small</option>
-      <option value="3" selected>Normal</option>
-      <option value="4">Large</option>
-      <option value="5">X-Large</option>
-      <option value="6">XX-Large</option>
-      <option value="7">Huge</option>
-    </select>
+    <input type="color" id="forecolor" title="Text color" onchange="execCmd('foreColor', this.value)" data-tip-key="textcolor" data-tip="Change text color">
 
-    <button class="icon-btn" title="Bold" onclick="cmd('bold')"><b>B</b></button>
-    <button class="icon-btn" title="Italic" onclick="cmd('italic')"><i>I</i></button>
-    <button class="icon-btn" title="Underline" onclick="cmd('underline')"><u>U</u></button>
-    <button class="icon-btn" title="Strike" onclick="cmd('strikeThrough')"><s>S</s></button>
+    <button class="icon" onclick="execCmd('insertUnorderedList')" data-tip-key="ul" data-tip="Bulleted list">•</button>
+    <button class="icon" onclick="execCmd('insertOrderedList')" data-tip-key="ol" data-tip="Numbered list">1.</button>
+    <button class="icon" onclick="execCmd('outdent')" data-tip-key="outdent" data-tip="Decrease indent">«</button>
+    <button class="icon" onclick="execCmd('indent')" data-tip-key="indent" data-tip="Increase indent">»</button>
 
-    <input type="color" title="Text color" onchange="cmd('foreColor', this.value)" />
-    <input type="color" title="Highlight" onchange="cmd('hiliteColor', this.value)" />
-
-    <button class="icon-btn" title="Left" onclick="cmd('justifyLeft')">↤</button>
-    <button class="icon-btn" title="Center" onclick="cmd('justifyCenter')">↔</button>
-    <button class="icon-btn" title="Right" onclick="cmd('justifyRight')">↦</button>
-    <button class="icon-btn" title="Justify" onclick="cmd('justifyFull')">☰</button>
-
-    <button class="icon-btn" title="Bulleted list" onclick="cmd('insertUnorderedList')">•</button>
-    <button class="icon-btn" title="Numbered list" onclick="cmd('insertOrderedList')">1.</button>
-    <button class="icon-btn" title="Outdent" onclick="cmd('outdent')">«</button>
-    <button class="icon-btn" title="Indent" onclick="cmd('indent')">»</button>
-
-    <button class="icon-btn" title="Link" onclick="insertLink()">🔗</button>
-    <label class="icon-btn upload" title="Image">🖼
+    <button class="icon" id="insert-link" onclick="insertLink()" data-tip-key="link" data-tip="Insert link (Ctrl/Cmd+K)">🔗</button>
+    <label class="icon upload" data-tip-key="image" data-tip="Insert image">
+      🖼
       <input type="file" accept="image/*" onchange="insertImage(event)" />
     </label>
-    <button class="icon-btn" title="Clear" onclick="clearFormatting()">⌫</button>
 
     <span class="sep"></span>
-
-    <button class="pill" onclick="saveDocument()">Save</button>
+    <div class="search">
+      <input id="find-input" placeholder="Find (press Enter)" />
+    </div>
   </div>
 
-  <!-- ===== Main Area ===== -->
+  <!-- Main layout: sidebar + editor -->
   <div class="layout">
-    <!-- Sidebar / Docs -->
+    <!-- Sidebar -->
     <aside id="sidebar" class="sidebar">
-      <div class="side-head">
-        <div>My documents</div>
-        <button class="small" onclick="newDocument()">+ New</button>
+      <div class="side-header">
+        <div>Documents</div>
+        <button class="small" id="side-new">New</button>
       </div>
-      <div id="docList" class="doc-list"></div>
+      <div id="docs-list" class="docs-list"></div>
     </aside>
 
-    <!-- Page -->
-    <section class="editor-wrap">
+    <!-- Editor / Page -->
+    <main class="editor-area">
       <div id="page" class="page">
-        <div id="editor" class="editor" contenteditable="true" spellcheck="true"
-             placeholder="Start typing…"></div>
+        <div id="editor" class="editor" contenteditable="true" spellcheck="true" placeholder="Start writing..."></div>
       </div>
+
       <footer class="statusbar">
-        <span id="stats">0 words · 0 chars · 0 min</span>
-        <span id="zoomLabel">100%</span>
+        <div id="stats">0 words · 0 chars</div>
+        <div id="zoom">100%</div>
       </footer>
-    </section>
+    </main>
   </div>
 
-  <!-- ===== Find & Replace Modal ===== -->
-  <div id="findModal" class="modal hidden" role="dialog" aria-modal="true">
+  <!-- Share Modal -->
+  <div id="share-modal" class="modal hidden" role="dialog" aria-modal="true">
     <div class="modal-card">
-      <h3>Find & Replace</h3>
-      <label>Find <input id="findInput" /></label>
-      <label>Replace <input id="replaceInput" /></label>
-      <div class="row">
-        <button onclick="findNext()">Find Next</button>
-        <button onclick="replaceOne()">Replace</button>
-        <button onclick="replaceAll()">Replace All</button>
-        <button class="ghost" onclick="closeFind()">Close</button>
+      <h3>Share Document</h3>
+      <div class="form-row">
+        <label>Expire after:
+          <select id="share-expiry">
+            <option value="0">Never</option>
+            <option value="1">1 day</option>
+            <option value="7">7 days</option>
+            <option value="30">30 days</option>
+          </select>
+        </label>
+      </div>
+      <div class="form-row">
+        <label><input type="checkbox" id="share-public" /> Make link public (no password required)</label>
+      </div>
+      <div class="form-row" id="password-row">
+        <label>Password:
+          <input id="share-password" type="password" placeholder="Enter password (required for private link)" />
+        </label>
+      </div>
+
+      <div class="row actions">
+        <button id="generate-share" class="primary">Generate Link</button>
+        <button onclick="closeModal('share-modal')" class="ghost">Cancel</button>
+      </div>
+
+      <hr />
+
+      <div id="share-result" class="share-result hidden">
+        <label>Link (click copy or it will be copied automatically)</label>
+        <input id="share-url" readonly />
+        <div class="row">
+          <button id="copy-share" class="small">Copy</button>
+          <button onclick="closeModal('share-modal')" class="ghost">Close</button>
+        </div>
+        <div id="share-meta" class="meta"></div>
       </div>
     </div>
   </div>
 
-  <!-- ===== Toasts ===== -->
-  <div id="toasts"></div>
+  <!-- Manage Shares Modal -->
+  <div id="manage-modal" class="modal hidden">
+    <div class="modal-card">
+      <h3>Shared Links</h3>
+      <div id="shared-links-list" class="shared-links-list"></div>
+      <div class="row actions">
+        <button onclick="closeModal('manage-modal')" class="ghost">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toasts -->
+  <div id="toasts" aria-live="polite"></div>
+
+  <!-- Tooltip holder -->
+  <div id="tip" class="tooltip hidden"></div>
+
+  <!-- App script -->
+  <script>
+/* ========= AnonDocs — single-file app JS =========
+   Features implemented:
+   - Docs CRUD in localStorage
+   - Robust share (private AES & public base64) with expiry
+   - Shared links management (list, copy, toggle public/private, revoke)
+   - Auto-copy to clipboard with fallback and visible share modal
+   - Print document content only (opens print window)
+   - Light/dark theme persistent
+   - One-time hover tooltips for features (tracked in localStorage)
+   - Formatting toolbar (execCommand) and basic find
+*/
+
+/* ---------- Utilities ---------- */
+const $ = s => document.querySelector(s);
+const $$ = s => document.querySelectorAll(s);
+function now(){ return Date.now(); }
+function formatDate(ts){ if(!ts) return "never"; return new Date(ts).toLocaleString(); }
+function toast(msg, time=2200){
+  const t = document.createElement('div'); t.className='toast'; t.textContent=msg; $('#toasts').appendChild(t);
+  setTimeout(()=> t.remove(), time);
+}
+async function copyToClipboard(text){
+  try { await navigator.clipboard.writeText(text); return true; } catch(e){}
+  try { const ta = document.createElement('textarea'); ta.value=text; ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); return true; } catch(e){ return false; }
+}
+function sanitize(html){ return String(html).replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, ''); }
+
+/* ---------- Storage Keys ---------- */
+const KEY_DOCS = 'anon_docs_v1';
+const KEY_SHARED = 'anon_shared_links_v1';
+const KEY_TIPS = 'anon_tooltips_v1';
+const KEY_THEME = 'anon_theme_v1';
+
+/* ---------- Models in localStorage ---------- */
+let docs = JSON.parse(localStorage.getItem(KEY_DOCS) || '{}');
+let sharedLinks = JSON.parse(localStorage.getItem(KEY_SHARED) || '[]');
+
+/* Current doc id */
+let currentId = null;
+
+/* ---------- Elements ---------- */
+const editor = $('#editor');
+const docsList = $('#docs-list');
+const titleInput = $('#title');
+const autosaveBadge = $('#autosave');
+const shareModal = $('#share-modal');
+const manageModal = $('#manage-modal');
+const shareResult = $('#share-result');
+const shareUrlInput = $('#share-url');
+const shareMeta = $('#share-meta');
+const tipEl = $('#tip');
+
+/* ---------- Boot ---------- */
+window.addEventListener('DOMContentLoaded', () => {
+  // theme
+  const savedTheme = localStorage.getItem(KEY_THEME) || 'dark';
+  if(savedTheme === 'light') document.documentElement.classList.add('light');
+
+  bindUI();
+  renderDocs();
+  handleSharedOpen(); // if link param present
+  // load most recent
+  const ids = Object.keys(docs).sort((a,b) => (docs[b].updated||0)-(docs[a].updated||0));
+  if(ids.length) loadDoc(ids[0]); else newDoc();
+});
+
+/* ---------- UI Binding ---------- */
+function bindUI(){
+  // top buttons
+  $('#menu-toggle').addEventListener('click', ()=> $('#sidebar').classList.toggle('open'));
+  $('#new-btn').addEventListener('click', newDoc);
+  $('#side-new').addEventListener('click', newDoc);
+  $('#save-btn').addEventListener('click', saveDoc);
+  $('#print-btn').addEventListener('click', printDocument);
+  $('#share-btn').addEventListener('click', openShareModal);
+  $('#manage-shares-btn').addEventListener('click', openManageModal);
+
+  $('#theme-toggle').addEventListener('click', ()=>{
+    document.documentElement.classList.toggle('light');
+    const active = document.documentElement.classList.contains('light') ? 'light' : 'dark';
+    localStorage.setItem(KEY_THEME, active);
+  });
+
+  // title
+  titleInput.addEventListener('input', ()=>{
+    if(!currentId) return;
+    docs[currentId].title = titleInput.value || 'Untitled';
+    docs[currentId].updated = now();
+    persistDocs();
+    renderDocs();
+  });
+
+  // toolbar formatting
+  $('#styleBlock').addEventListener('change', (e)=> formatBlock(e.target.value));
+  $$('#toolbar .icon').forEach(el=>{
+    // add tooltip handler (first-time only)
+    el.addEventListener('mouseenter', showFirstTipDelayed);
+  });
+
+  // editor events
+  editor.addEventListener('input', ()=> {
+    scheduleAutosave();
+    updateStats();
+  });
+  editor.addEventListener('keydown', (ev)=>{
+    if((ev.ctrlKey||ev.metaKey) && ev.key.toLowerCase()==='s'){ ev.preventDefault(); saveDoc(); }
+    if((ev.ctrlKey||ev.metaKey) && ev.key.toLowerCase()==='k'){ ev.preventDefault(); insertLink(); }
+  });
+
+  // find box
+  $('#find-input').addEventListener('keydown', (e)=> { if(e.key==='Enter') findNext(); });
+
+  // share modal actions
+  $('#share-public').addEventListener('change', ()=> {
+    $('#password-row').style.display = $('#share-public').checked ? 'none' : 'block';
+  });
+  $('#generate-share').addEventListener('click', generateShare);
+
+  $('#copy-share').addEventListener('click', async ()=>{
+    const url = shareUrlInput.value;
+    const ok = await copyToClipboard(url);
+    toast(ok ? 'Copied' : 'Copy failed');
+  });
+
+  // manage modal close on background click
+  manageModal.addEventListener('click', (e)=> { if(e.target === manageModal) closeModal('manage-modal'); });
+  shareModal.addEventListener('click', (e)=> { if(e.target === shareModal) closeModal('share-modal'); });
+
+  // tooltips for toolbar + topbar first time
+  document.querySelectorAll('[data-tip]').forEach(el=>{
+    el.addEventListener('mouseenter', showFirstTipDelayed);
+  });
+}
+
+/* ---------- Docs CRUD ---------- */
+function persistDocs(){ localStorage.setItem(KEY_DOCS, JSON.stringify(docs)); }
+function persistShared(){ localStorage.setItem(KEY_SHARED, JSON.stringify(sharedLinks)); }
+
+function newDoc(){
+  const id = String(Date.now());
+  docs[id] = { id, title: 'Untitled', content: '', created: now(), updated: now() };
+  persistDocs();
+  renderDocs();
+  loadDoc(id);
+  toast('New document created');
+}
+
+function renderDocs(){
+  docsList.innerHTML = '';
+  const sorted = Object.values(docs).sort((a,b)=> (b.updated||0)-(a.updated||0));
+  sorted.forEach(d=>{
+    const item = document.createElement('div'); item.className='doc-item'; item.textContent = d.title;
+    item.addEventListener('click', ()=> loadDoc(d.id));
+    if(d.id === currentId) item.classList.add('active');
+    docsList.appendChild(item);
+  });
+}
+
+function loadDoc(id){
+  const d = docs[id];
+  if(!d) return;
+  currentId = id;
+  editor.innerHTML = d.content || '';
+  titleInput.value = d.title || 'Untitled';
+  renderDocs();
+  updateStats();
+}
+
+let autosaveTimer = null;
+function scheduleAutosave(){
+  autosaveBadge.textContent = 'Saving...'; autosaveBadge.style.opacity=1;
+  clearTimeout(autosaveTimer);
+  autosaveTimer = setTimeout(()=> {
+    saveDoc();
+    autosaveBadge.textContent = 'Saved'; autosaveBadge.style.opacity=.7;
+  }, 900);
+}
+
+function saveDoc(){
+  if(!currentId) { newDoc(); return; }
+  docs[currentId].content = sanitize(editor.innerHTML);
+  docs[currentId].title = titleInput.value || deriveTitleFromContent(editor.innerHTML) || 'Untitled';
+  docs[currentId].updated = now();
+  persistDocs();
+  renderDocs();
+  toast('Saved');
+}
+
+function deriveTitleFromContent(html){
+  const text = stripTags(html).trim();
+  return (text.split('\n')[0]||'').slice(0,40);
+}
+function stripTags(s){ return String(s).replace(/<[^>]+>/g,''); }
+
+/* ---------- Formatting helpers ---------- */
+function execCmd(cmd, value=null){ document.execCommand(cmd, false, value); editor.focus(); }
+function formatBlock(tag){ document.execCommand('formatBlock', false, tag); editor.focus(); }
+
+/* ---------- Insert helpers ---------- */
+function insertLink(){
+  const url = prompt('Enter URL (include https://):');
+  if(!url) return;
+  execCmd('createLink', url);
+}
+function insertImage(e){
+  const f = e.target.files && e.target.files[0];
+  if(!f) return;
+  const reader = new FileReader();
+  reader.onload = ()=> {
+    execCmd('insertImage', reader.result);
+    toast('Image inserted');
+  };
+  reader.readAsDataURL(f);
+  e.target.value = '';
+}
+
+/* ---------- Find ---------- */
+let lastFindIndex = 0;
+function findNext(){
+  const term = $('#find-input').value;
+  if(!term) return;
+  const text = editor.innerText;
+  const idx = text.indexOf(term, lastFindIndex+1);
+  if(idx === -1){
+    lastFindIndex = 0; toast('Not found');
+    return;
+  }
+  selectTextByIndex(idx, term.length);
+  lastFindIndex = idx;
+}
+function selectTextByIndex(start, len){
+  const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
+  let node, pos=0, startNode, endNode, startOffset, endOffset;
+  while(node = walker.nextNode()){
+    const nextPos = pos + node.textContent.length;
+    if(startNode==null && start >= pos && start < nextPos){ startNode = node; startOffset = start-pos; }
+    if(startNode && (start+len) <= nextPos){ endNode = node; endOffset = (start+len)-pos; break; }
+    pos = nextPos;
+  }
+  if(startNode && endNode){
+    const range = document.createRange();
+    range.setStart(startNode, startOffset); range.setEnd(endNode, endOffset);
+    const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+  }
+}
+
+/* ---------- Printing (print only doc content) ---------- */
+function printDocument(){
+  // create a minimal printable page, write only document content
+  const html = `
+    <!doctype html><html><head>
+    <meta charset="utf-8"><title>${escapeHtml(titleInput.value || 'Document')}</title>
+    <style>
+      @media print { @page { margin: 20mm } body { margin: 0; font-family: system-ui, Arial; color: #111 } }
+      body{ padding: 20px; }
+      img{ max-width:100%; height:auto; }
+    </style>
+    </head><body>${sanitize(editor.innerHTML)}</body></html>
+  `;
+  const w = window.open('', '_blank', 'noopener');
+  if(!w){ alert('Popup blocked — allow popups to use print.'); return; }
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
+  // print after content loads
+  w.onload = () => { w.focus(); w.print(); };
+}
+
+/* ---------- Sharing (private = AES, public = base64 payload) ---------- */
+function openShareModal(){
+  if(!currentId){ alert('Save or create a document first.'); return; }
+  $('#share-expiry').value = '7';
+  $('#share-public').checked = false;
+  $('#share-password').value = '';
+  $('#password-row').style.display = 'block';
+  shareResult.classList.add('hidden');
+  openModal('share-modal');
+}
+
+function generateShare(){
+  const expiryDays = Number($('#share-expiry').value);
+  const isPublic = $('#share-public').checked;
+  const password = $('#share-password').value;
+  if(!isPublic && !password){ alert('Private links require a password.'); return; }
+
+  // payload
+  const payload = {
+    title: titleInput.value || 'Untitled',
+    html: editor.innerHTML,
+    createdAt: now(),
+    expiresAt: expiryDays>0 ? now() + expiryDays*24*60*60*1000 : null,
+    docId: currentId
+  };
+
+  const base = location.origin + location.pathname;
+  let encoded = '';
+  if(isPublic){
+    // Mark as public with PUB: prefix (base64 payload)
+    encoded = 'PUB:' + btoa(JSON.stringify(payload));
+  } else {
+    // Private: encrypt with AES and prefix PRV:
+    encoded = 'PRV:' + CryptoJS.AES.encrypt(JSON.stringify(payload), password).toString();
+  }
+  const url = `${base}?shared=${encodeURIComponent(encoded)}`;
+
+  // Save to sharedLinks model
+  const record = {
+    id: String(Date.now()),
+    docId: currentId,
+    url,
+    public: isPublic,
+    createdAt: payload.createdAt,
+    expiresAt: payload.expiresAt
+  };
+  sharedLinks.unshift(record);
+  persistShared();
+
+  // Show result, auto-copy
+  shareUrlInput.value = url;
+  shareMeta.textContent = 'Expires: ' + (payload.expiresAt ? formatDate(payload.expiresAt) : 'Never') + (isPublic ? ' · Public link' : ' · Private (password required)');
+  shareResult.classList.remove('hidden');
+
+  copyToClipboard(url).then(ok=>{
+    if(ok) toast('Secure link copied to clipboard');
+    else toast('Could not auto-copy — use copy button');
+  });
+}
+
+function openManageModal(){
+  renderSharedList();
+  openModal('manage-modal');
+}
+
+function renderSharedList(){
+  const wrap = $('#shared-links-list'); wrap.innerHTML = '';
+  if(!sharedLinks.length){ wrap.innerHTML = '<div class="muted">No shared links yet</div>'; return; }
+  sharedLinks.forEach(rec=>{
+    const item = document.createElement('div'); item.className='shared-item';
+    const left = document.createElement('div'); left.className='left';
+    const title = docs[rec.docId] ? docs[rec.docId].title : '(deleted)';
+    left.innerHTML = `<div class="s-title">${escapeHtml(title)}</div>
+                      <div class="s-meta">Created: ${formatDate(rec.createdAt)} · Expires: ${rec.expiresAt ? formatDate(rec.expiresAt) : 'Never'}</div>`;
+    const right = document.createElement('div'); right.className='right';
+    const copyBtn = document.createElement('button'); copyBtn.className='small'; copyBtn.textContent='Copy';
+    copyBtn.addEventListener('click', ()=> { copyToClipboard(rec.url).then(ok=> toast(ok?'Copied':'Copy failed')); });
+
+    const openBtn = document.createElement('button'); openBtn.className='small ghost'; openBtn.textContent='Open';
+    openBtn.addEventListener('click', ()=> window.open(rec.url, '_blank'));
+
+    const toggleBtn = document.createElement('button'); toggleBtn.className='small'; toggleBtn.textContent = rec.public ? 'Make Private' : 'Make Public';
+    toggleBtn.addEventListener('click', ()=> togglePublic(rec.id));
+
+    const revokeBtn = document.createElement('button'); revokeBtn.className='small ghost'; revokeBtn.textContent='Revoke';
+    revokeBtn.addEventListener('click', ()=> { if(confirm('Revoke this link?')) revokeLink(rec.id); });
+
+    right.appendChild(copyBtn); right.appendChild(openBtn); right.appendChild(toggleBtn); right.appendChild(revokeBtn);
+    item.appendChild(left); item.appendChild(right);
+    wrap.appendChild(item);
+  });
+}
+
+function togglePublic(recId){
+  const rec = sharedLinks.find(r=>r.id===recId);
+  if(!rec) return;
+  // regenerate url with toggled public/private
+  const doc = docs[rec.docId];
+  if(!doc){ alert('Original document no longer available'); return; }
+  const payload = {
+    title: doc.title,
+    html: doc.content,
+    createdAt: now(),
+    expiresAt: rec.expiresAt,
+    docId: rec.docId
+  };
+  if(rec.public){
+    // change to private: ask for password
+    const pwd = prompt('Make private — set a password:');
+    if(!pwd) return;
+    const enc = 'PRV:' + CryptoJS.AES.encrypt(JSON.stringify(payload), pwd).toString();
+    rec.url = `${location.origin}${location.pathname}?shared=${encodeURIComponent(enc)}`;
+    rec.public = false;
+  } else {
+    // make public
+    const b = 'PUB:' + btoa(JSON.stringify(payload));
+    rec.url = `${location.origin}${location.pathname}?shared=${encodeURIComponent(b)}`;
+    rec.public = true;
+  }
+  persistShared(); renderSharedList(); toast('Link updated');
+}
+
+function revokeLink(recId){
+  sharedLinks = sharedLinks.filter(r => r.id !== recId);
+  persistShared();
+  renderSharedList();
+  toast('Link revoked');
+}
+
+/* ---------- Open shared link flow ---------- */
+function handleSharedOpen(){
+  const params = new URLSearchParams(location.search);
+  const s = params.get('shared');
+  if(!s) return;
+  // attempt to open shared content
+  const decoded = decodeURIComponent(s);
+  if(decoded.startsWith('PUB:')){
+    try{
+      const payload = JSON.parse(atob(decoded.slice(4)));
+      if(payload.expiresAt && Date.now() > payload.expiresAt){ alert('This shared link has expired.'); return; }
+      openSharedPayload(payload);
+    } catch(e){ alert('Invalid share link'); }
+  } else if(decoded.startsWith('PRV:')){
+    const cipher = decoded.slice(4);
+    const pwd = prompt('Enter password to open shared document:');
+    if(!pwd) return;
+    try{
+      const bytes = CryptoJS.AES.decrypt(cipher, pwd);
+      const json = bytes.toString(CryptoJS.enc.Utf8);
+      if(!json) throw new Error('bad');
+      const payload = JSON.parse(json);
+      if(payload.expiresAt && Date.now() > payload.expiresAt){ alert('This shared link has expired.'); return; }
+      openSharedPayload(payload);
+    } catch(e){ alert('Incorrect password or corrupted link'); }
+  } else {
+    alert('Invalid share format');
+  }
+}
+function openSharedPayload(payload){
+  // show preview in editor; ask to save
+  editor.innerHTML = sanitize(payload.html || '');
+  titleInput.value = payload.title || 'Shared Document';
+  if(confirm('Open successful. Save a local copy of this shared doc?')){
+    const id = String(Date.now());
+    docs[id] = { id, title: titleInput.value, content: editor.innerHTML, created: now(), updated: now() };
+    persistDocs();
+    renderDocs();
+    loadDoc(id);
+    toast('Saved local copy');
+  }
+}
+
+/* ---------- Modal helpers ---------- */
+function openModal(id){
+  document.getElementById(id).classList.remove('hidden');
+}
+function closeModal(id){
+  document.getElementById(id).classList.add('hidden');
+}
+
+/* ---------- Shared Links persistence ---------- */
+function persistShared(){ localStorage.setItem(KEY_SHARED, JSON.stringify(sharedLinks)); }
+
+/* ---------- Tooltips (show only first time per key) ---------- */
+function showFirstTipDelayed(e){
+  const el = e.currentTarget;
+  const key = el.dataset.tipKey;
+  const tipText = el.dataset.tip;
+  if(!key || !tipText) return;
+  const shown = JSON.parse(localStorage.getItem(KEY_TIPS) || '{}');
+  if(shown[key]) return;
+  // show tooltip near element
+  const rect = el.getBoundingClientRect();
+  tipEl.textContent = tipText;
+  tipEl.style.top = (rect.bottom + 8 + window.scrollY) + 'px';
+  tipEl.style.left = (rect.left + (rect.width/2) - 120 + window.scrollX) + 'px';
+  tipEl.classList.remove('hidden');
+  setTimeout(()=> tipEl.classList.add('hidden'), 4200);
+  shown[key] = true;
+  localStorage.setItem(KEY_TIPS, JSON.stringify(shown));
+}
+
+/* ---------- Stats ---------- */
+function updateStats(){
+  const txt = (editor.innerText||'').trim();
+  const words = txt ? (txt.match(/\S+/g)||[]).length : 0;
+  const chars = (txt.replace(/\s/g,'')).length;
+  $('#stats').textContent = `${words} words · ${chars} chars`;
+}
+setInterval(updateStats, 1000);
+
+/* ---------- Helpers ---------- */
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[c])); }
+
+/* ---------- Init: attach simple UI handlers (menus closed on outside click) ---------- */
+document.addEventListener('click', (e)=> {
+  // close menus (if any)
+  $$('.menu').forEach(m=> m.style.display='none');
+});
+
+/* ============ END ============ */
+  </script>
 </body>
 </html>
