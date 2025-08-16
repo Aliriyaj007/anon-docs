@@ -5,22 +5,29 @@ It provides a Google-Docs–inspired writing experience with password-protected 
 
 ---
 
-## Features
+## 🚀 Features
 
-- **Rich editing** with contentEditable + formatting toolbar (bold, italic, underline, headings, lists, alignment, color, images, links).
-- **Autosave & manual save** to browser `localStorage`.
-- **Password-protected sharing**:
-  - Private links: AES-encrypted payload (CryptoJS) → require password to open.
-  - Public links: base64 payload (no password).
-  - Link expiry included in the payload (user selectable).
-- **Shared Links Manager** — view, copy, open, toggle public/private, revoke links.
-- **Print** — prints **only** the document content (no UI).
-- **Responsive UI** — works on desktop and mobile; page-like layout for focused writing.
-- **Light / Dark theme** persisted across sessions.
-- **First-time tooltips** for toolbar features (one-time per browser).
-- **Export / import** utilities included (backup via localStorage export & import).
-- Fully client-side — no server required (links are self-contained in the URL).
-
+- **Rich Text Editing**
+  - Bold, Italic, Underline
+  - Headings, Lists, Alignment
+  - Multiple font styles & colors
+  - Copy, Cut, Paste support
+- **Document Sharing**
+  - Generate **secure password-protected share links**
+  - Control links: **make public/private**
+  - Manage previously shared links from a **“Shared Links” tab**
+  - Copy-to-clipboard works **automatically**
+  - Set **expiration date** for shared links
+- **Themes**
+  - **Light, Dark, and Colored themes**
+  - Icons adapt automatically
+  - Compact, professional UI for PC & mobile
+- **Printing**
+  - Print **only the document content**
+  - No extra UI clutter on printout
+- **Privacy Focused**
+  - No tracking, no backend
+  - Everything runs locally in your browser
 ---
 
 ## Files
