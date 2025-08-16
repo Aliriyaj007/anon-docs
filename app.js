@@ -1,5 +1,5 @@
 /* ================================
-   AnonDocs - app.js (secure share)
+   AnonDocs - app.js (secure share + UX)
    ================================ */
 
 let docs = JSON.parse(localStorage.getItem("docs") || "{}");
@@ -7,25 +7,22 @@ let currentDoc = null;
 let isLight = localStorage.getItem("theme") === "light";
 
 const editor = document.getElementById("editor");
+const titleInput = document.getElementById("titleInput");
+const meter = document.getElementById("meter");
 
 /* ---------- Boot ---------- */
 function boot() {
-  // Apply theme early
   document.body.className = isLight ? "light" : "";
 
-  // Load from ?doc= (encrypted) if present
   const params = new URLSearchParams(window.location.search);
   const enc = params.get("doc");
-  if (enc) {
-    tryOpenEncrypted(enc);
-  }
+  if (enc) tryOpenEncrypted(enc);
 
   renderDocs();
 
-  // If user has no docs yet, start one
-  if (!Object.keys(docs).length && !enc) {
-    newDocument();
-  }
+  if (!Object.keys(docs).length && !enc) newDocument();
+
+  updateMeter();
 }
 window.addEventListener("load", boot);
 
@@ -55,6 +52,7 @@ function newDocument() {
   currentDoc = Date.now().toString();
   docs[currentDoc] = { title: "Untitled", content: "", updated: Date.now() };
   editor.innerHTML = "";
+  titleInput.value = "Untitled";
   persist();
   renderDocs();
 }
@@ -62,24 +60,43 @@ function newDocument() {
 function loadDocument(id) {
   currentDoc = id;
   editor.innerHTML = docs[id].content || "";
+  titleInput.value = docs[id].title || "Untitled";
+  updateMeter();
+}
+
+function deriveTitleFromContent(html) {
+  const plain = html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+  return (plain.split("\n")[0] || "Untitled").slice(0, 40) || "Untitled";
 }
 
 function saveDocument() {
   if (!currentDoc) newDocument();
   const content = editor.innerHTML;
-  // Title = first 1 line of plain text (max 40 chars)
-  const plain = content.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
-  const title = (plain.split("\n")[0] || "Untitled").slice(0, 40) || "Untitled";
-
+  const title = (titleInput.value || "").trim() || deriveTitleFromContent(content);
   docs[currentDoc] = { title, content, updated: Date.now() };
   persist();
   renderDocs();
-  alert("✅ Document saved locally.");
+  showToast("✅ Saved");
 }
 
 function persist() {
   localStorage.setItem("docs", JSON.stringify(docs));
   localStorage.setItem("theme", isLight ? "light" : "dark");
+}
+
+/* ---------- Autosave (debounced) ---------- */
+let autosaveTimer;
+function scheduleAutosave() {
+  clearTimeout(autosaveTimer);
+  autosaveTimer = setTimeout(() => {
+    if (!currentDoc) newDocument();
+    const content = editor.innerHTML;
+    const title = (titleInput.value || "").trim() || deriveTitleFromContent(content);
+    docs[currentDoc] = { title, content, updated: Date.now() };
+    persist();
+    renderDocs();
+    showToast("💾 Autosaved");
+  }, 1200);
 }
 
 /* ---------- Formatting ---------- */
@@ -94,13 +111,16 @@ function toggleTheme() {
   persist();
 }
 
+/* ---------- Word meter ---------- */
+function updateMeter() {
+  const text = (editor.innerText || "").trim();
+  const words = text ? (text.match(/\S+/g) || []).length : 0;
+  meter.textContent = `${words} word${words === 1 ? "" : "s"}`;
+}
+
 /* ---------- Secure Share (AES) ---------- */
-/**
- * Encrypts current document HTML using a password (AES),
- * builds a sharable URL, and copies it to clipboard.
- */
 async function secureShare() {
-  if (!currentDoc) saveDocument(); // ensure we have a doc id
+  if (!currentDoc) saveDocument();
 
   const password = prompt("Set a password for this document (remember it!):");
   if (!password) return;
@@ -116,17 +136,56 @@ async function secureShare() {
     const base = window.location.origin + window.location.pathname;
     const url = `${base}?doc=${encodeURIComponent(encrypted)}`;
 
-    // Try to copy; if blocked, just show dialog
-    try {
-      await navigator.clipboard.writeText(url);
-      alert("🔒 Secure URL copied to clipboard!\nShare it with the password.");
-    } catch {
-      prompt("Copy this secure URL:", url);
+    const ok = await copyToClipboard(url);
+    if (ok) {
+      showToast("🔒 Secure URL copied");
+    } else {
+      // Fallback: show modal with the URL to copy manually
+      document.getElementById("shareUrl").value = url;
+      document.getElementById("shareModal").classList.remove("hidden");
+      showToast("⚠️ Couldn’t auto-copy. Copy manually.");
     }
   } catch (e) {
     console.error(e);
     alert("❌ Failed to create secure link.");
   }
+}
+
+/* ---------- Clipboard helpers ---------- */
+async function copyToClipboard(text) {
+  // Primary: Async Clipboard API
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch (e1) {
+    // Fallback: hidden textarea + execCommand
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.setAttribute("readonly", "");
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+      return true;
+    } catch (e2) {
+      return false;
+    }
+  }
+}
+
+function copyShareUrl() {
+  const val = document.getElementById("shareUrl").value;
+  copyToClipboard(val).then((ok) => {
+    showToast(ok ? "📋 Copied" : "❌ Copy failed");
+    if (ok) closeShareModal();
+  });
+}
+
+function closeShareModal() {
+  document.getElementById("shareModal").classList.add("hidden");
 }
 
 /* ---------- Open Encrypted From URL ---------- */
@@ -140,20 +199,21 @@ function tryOpenEncrypted(enc) {
     if (!json) throw new Error("Bad password or data");
     const data = JSON.parse(json);
 
-    // Show the decrypted content in editor (not auto-saving)
     editor.innerHTML = data.html || "";
+    titleInput.value = data.title || "Shared Document";
+    updateMeter();
 
-    // Ask to save into local docs
     const saveIt = confirm("Open successful. Save a local copy?");
     if (saveIt) {
       currentDoc = Date.now().toString();
       docs[currentDoc] = {
-        title: data.title || "Shared Document",
-        content: data.html || "",
+        title: titleInput.value || "Shared Document",
+        content: editor.innerHTML,
         updated: Date.now(),
       };
       persist();
       renderDocs();
+      showToast("✅ Saved local copy");
     }
   } catch (e) {
     console.error(e);
@@ -162,7 +222,6 @@ function tryOpenEncrypted(enc) {
 }
 
 /* ---------- Optional: Open Shared (paste a URL) ---------- */
-/* Hook to a toolbar button if you like: <button onclick="openShared()">🔓 Open Shared</button> */
 function openShared() {
   const url = prompt("Paste the secure URL:");
   if (!url) return;
@@ -176,6 +235,29 @@ function openShared() {
   }
 }
 
+/* ---------- Toasts ---------- */
+function showToast(text) {
+  const wrap = document.getElementById("toasts");
+  const t = document.createElement("div");
+  t.className = "toast show";
+  t.textContent = text;
+  wrap.appendChild(t);
+  setTimeout(() => wrap.removeChild(t), 2400);
+}
+
+/* ---------- Events ---------- */
+editor.addEventListener("input", () => {
+  updateMeter();
+  scheduleAutosave();
+});
+titleInput.addEventListener("input", () => {
+  if (!currentDoc) return;
+  docs[currentDoc].title = titleInput.value || "Untitled";
+  docs[currentDoc].updated = Date.now();
+  persist();
+  renderDocs();
+});
+
 /* ---------- Expose to window (used by HTML buttons) ---------- */
 window.newDocument = newDocument;
 window.loadDocument = loadDocument;
@@ -184,3 +266,5 @@ window.formatDoc = formatDoc;
 window.toggleTheme = toggleTheme;
 window.secureShare = secureShare;
 window.openShared = openShared;
+window.copyShareUrl = copyShareUrl;
+window.closeShareModal = closeShareModal;
