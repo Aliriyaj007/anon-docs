@@ -1,77 +1,86 @@
-# anon-docs
+# AnonDocs — Minimal, Private Docs
 
-# 📝 AnonDocs - Minimal Writing App
-
-AnonDocs is a **clean, offline-friendly writing web app** built with HTML, CSS, and JavaScript.  
-It’s designed for distraction-free writing, basic formatting, local saving, and secure sharing — all inside your browser.
+AnonDocs is a lightweight, privacy-focused, offline-capable writing app built with **only HTML, CSS, and JavaScript**.  
+It provides a Google-Docs–inspired writing experience with password-protected sharing, saved shared-link management, printing of document content only, autosave, light/dark theme, and more.
 
 ---
 
-## 🚀 Features
+## Features
 
-- **New Document Creation** → Start fresh with one click.  
-- **Text Editor** → Distraction-free writing interface (`contenteditable`).  
-- **Formatting Tools** → Bold, Italic, Underline, Font family, Font size, Text color.  
-- **Theme Selection** → Toggle between **Dark Mode** 🌑 and **Light Mode** ☀️.  
-- **Local Storage Saving** → Documents are saved in your browser and persist across sessions.  
-- **Document List View** → Sidebar with all saved documents and titles.  
-- **Secure Share** → Share a document with **password-protected encrypted URL**.  
-
----
-
-## 🎨 UI Design
-
-- Minimalist layout for long writing sessions.  
-- Anonymous black/gray theme by default (light mode available).  
-- Clean typography for better readability.  
+- **Rich editing** with contentEditable + formatting toolbar (bold, italic, underline, headings, lists, alignment, color, images, links).
+- **Autosave & manual save** to browser `localStorage`.
+- **Password-protected sharing**:
+  - Private links: AES-encrypted payload (CryptoJS) → require password to open.
+  - Public links: base64 payload (no password).
+  - Link expiry included in the payload (user selectable).
+- **Shared Links Manager** — view, copy, open, toggle public/private, revoke links.
+- **Print** — prints **only** the document content (no UI).
+- **Responsive UI** — works on desktop and mobile; page-like layout for focused writing.
+- **Light / Dark theme** persisted across sessions.
+- **First-time tooltips** for toolbar features (one-time per browser).
+- **Export / import** utilities included (backup via localStorage export & import).
+- Fully client-side — no server required (links are self-contained in the URL).
 
 ---
 
-## 💻 Tech Stack
+## Files
 
-- **HTML5** → Structure  
-- **CSS3** → Styling (Dark/Light themes)  
-- **JavaScript (Vanilla)** → Logic for documents, storage, and sharing  
-
----
-
-## 📂 Project Structure
-anon-docs/
-│
-├── index.html # Main HTML structure
-├── style.css # App styling & themes
-├── app.js # JavaScript functionality
-├── assets/ # Screenshots and images
-└── README.md # Project documentation
-
+- `index.html` — main app shell, UI, modals.
+- `style.css` — styling and responsive layout.
+- `app.js` — all application logic (documents, sharing, printing, UI).
+- (Optional) `assets/` — place screenshots or demo images if you want.
 
 ---
 
-## 🔒 Secure Share
+## How to run
 
-- When you click **Secure Share**, the app:  
-1. Encrypts the content with a password.  
-2. Generates a unique sharable link.  
-3. Others need the **password** to open the document.  
-
----
-
-## 🙌 Contributing
-
-Want to improve this app? Feel free to:  
-- Fork the repo  
-- Create a new branch  
-- Submit a Pull Request 🚀  
+1. Put `index.html`, `style.css`, and `app.js` in the same folder.  
+2. Open `index.html` in a browser (Chrome/Edge/Firefox recommended).  
+3. Or upload to a GitHub repository and enable **GitHub Pages** from repository Settings → Pages → main → root to publish.
 
 ---
 
-## 📜 License
+## How sharing works
 
-This project is licensed under the **MIT License**.  
-You’re free to use, modify, and distribute it.  
+- **Private link**: You set a password. The app AES-encrypts the document payload and produces a `?shared=PRV:<cipher>` URL. The receiver must enter the password to decrypt and view.
+- **Public link**: The app creates a base64 payload `?shared=PUB:<base64>` that anyone can open.
+- **Expiry**: You can set expiry (1 day, 7 days, 30 days, or never). Expired links cannot be opened.
+- **Shared Links Manager**: saved links appear in the "Shared Links" modal where you can copy, open, toggle public/private, or revoke.
+
+> Note: passwords are **not** stored by the app — if you forget the password for a private link, the data cannot be recovered.
 
 ---
 
-✨ Built with minimalism & focus for anonymous writing.
+## Printing
 
+Use the **Print** button — the app opens a minimal print window containing only the document HTML (images preserved), then calls `window.print()` so the page UI is not printed.
 
+---
+
+## Security notes
+
+- Private links use AES encryption (via CryptoJS) — password is required to decrypt.
+- The app strips `<script>` tags from imported content to lower XSS risk.
+- Data is stored in `localStorage` only. If you want server-backed sync/persistence, a small server or serverless function would be required.
+
+---
+
+## Next steps / Improvements
+
+- Optional server for persistent shared links (so links survive device storage loss).
+- Convert to a PWA to install and work fully offline with an app icon.
+- Replace `document.execCommand` with a modern editor engine for richer features (collaboration, diffing).
+- Add permissions & link access control (email-based invites) via a backend.
+
+---
+
+## License
+
+MIT — feel free to use, modify, and distribute.
+
+---
+
+If you want, I can:
+- Split `app.js` into modules and add inline documentation.
+- Create a `README` with screenshots (I can generate mockups).
+- Help you set up GitHub Pages and push these files to a repo.
