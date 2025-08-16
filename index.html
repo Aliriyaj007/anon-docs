@@ -1,91 +1,79 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>AnonDocs — Private & Anonymous</title>
 
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="styles.css">
 
-  <!-- CryptoJS (AES) CDN -->
+  <!-- CryptoJS for AES encryption -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
-  <script src="app.js" defer></script>
+  <script src="script.js" defer></script>
 </head>
 <body>
-  <!-- Topbar -->
+  <!-- Top bar -->
   <header class="topbar">
     <div class="left">
-      <button id="menuToggle" class="icon-btn" data-tip-key="menu" data-tip="Open documents sidebar">☰</button>
+      <button id="menuToggle" class="icon" title="Toggle documents sidebar">☰</button>
       <div class="brand">AnonDocs</div>
-      <input id="titleInput" class="title-input" placeholder="Untitled document" />
-
-      <div class="top-actions">
-        <button id="newBtn" class="btn" data-tip-key="new" data-tip="New document">New</button>
-        <button id="saveBtn" class="btn" data-tip-key="save" data-tip="Save (Ctrl/Cmd+S)">Save</button>
-        <button id="shareBtn" class="btn primary" data-tip-key="share" data-tip="Share (password-protected link)">Share</button>
-      </div>
+      <input id="titleInput" class="title" placeholder="Untitled (click to rename)" />
     </div>
 
     <div class="right">
-      <span id="statusBadge" class="badge">Saved</span>
-      <select id="themeSelect" class="theme-select" title="Theme" data-tip-key="theme" data-tip="Theme">
+      <select id="themeSelect" title="Theme" class="theme-select">
+        <option value="hacker">Hacker (Green)</option>
         <option value="dark">Dark</option>
+        <option value="cyber">Cyber Blue</option>
         <option value="light">Light</option>
-        <option value="colored">Colored</option>
       </select>
+
+      <select id="fontSelect" title="Font">
+        <option value="Inter, system-ui, sans-serif">Inter</option>
+        <option value="Arial, Helvetica, sans-serif">Arial</option>
+        <option value="'Fira Code', 'Courier New', monospace">Fira Code (mono)</option>
+        <option value="'Source Code Pro', 'Courier New', monospace">Source Code Pro (mono)</option>
+        <option value="'Courier New', monospace">Courier New</option>
+      </select>
+
+      <button id="newBtn" class="btn" title="New document">New</button>
+      <button id="saveBtn" class="btn" title="Save">Save</button>
+      <button id="shareBtn" class="btn primary" title="Share">Share</button>
     </div>
   </header>
 
-  <!-- Compact Toolbar -->
+  <!-- Toolbar -->
   <div class="toolbar" id="toolbar">
-    <select id="fontFamily" title="Font family" data-tip-key="font" data-tip="Font family">
-      <option>Inter</option>
-      <option>Arial</option>
-      <option>Georgia</option>
-      <option>"Times New Roman"</option>
-      <option>Verdana</option>
-      <option>Courier New</option>
-    </select>
-
-    <select id="fontSize" title="Font size" data-tip-key="size" data-tip="Font size">
-      <option value="3">Normal</option>
-      <option value="4">Large</option>
-      <option value="5">X-Large</option>
-      <option value="6">Huge</option>
-    </select>
-
-    <select id="blockFormat" title="Paragraph / Headings" data-tip-key="style" data-tip="Paragraph / Headings">
+    <select id="blockSelect" title="Paragraph / Headings">
       <option value="P">Normal</option>
       <option value="H1">Heading 1</option>
       <option value="H2">Heading 2</option>
       <option value="H3">Heading 3</option>
     </select>
 
-    <button class="icon-btn" data-cmd="bold" data-tip-key="bold" data-tip="Bold (Ctrl/Cmd+B)"><b>B</b></button>
-    <button class="icon-btn" data-cmd="italic" data-tip-key="italic" data-tip="Italic (Ctrl/Cmd+I)"><i>I</i></button>
-    <button class="icon-btn" data-cmd="underline" data-tip-key="underline" data-tip="Underline (Ctrl/Cmd+U)"><u>U</u></button>
-    <button class="icon-btn" data-cmd="strikeThrough" data-tip-key="strike" data-tip="Strike-through">S</button>
+    <button data-cmd="bold" class="tbtn" title="Bold">B</button>
+    <button data-cmd="italic" class="tbtn" title="Italic">I</button>
+    <button data-cmd="underline" class="tbtn" title="Underline">U</button>
+    <button data-cmd="strikeThrough" class="tbtn" title="Strike">S</button>
 
-    <input id="textColor" type="color" title="Text color" data-tip-key="textcolor" data-tip="Text color" />
-    <input id="highlightColor" type="color" title="Highlight color" data-tip-key="highlight" data-tip="Highlight color" />
+    <input id="foreColor" type="color" title="Text color" />
+    <input id="hiliteColor" type="color" title="Highlight" />
 
-    <button class="icon-btn" data-cmd="insertUnorderedList" data-tip-key="ul" data-tip="Bulleted list">•</button>
-    <button class="icon-btn" data-cmd="insertOrderedList" data-tip-key="ol" data-tip="Numbered list">1.</button>
-    <button class="icon-btn" data-cmd="outdent" data-tip-key="outdent" data-tip="Decrease indent">«</button>
-    <button class="icon-btn" data-cmd="indent" data-tip-key="indent" data-tip="Increase indent">»</button>
+    <button data-cmd="insertUnorderedList" class="tbtn" title="Bulleted list">•</button>
+    <button data-cmd="insertOrderedList" class="tbtn" title="Numbered list">1.</button>
+    <button data-cmd="outdent" class="tbtn" title="Outdent">«</button>
+    <button data-cmd="indent" class="tbtn" title="Indent">»</button>
 
-    <button id="linkBtn" class="icon-btn" data-tip-key="link" data-tip="Insert link (Ctrl/Cmd+K)">🔗</button>
-    <label class="icon-btn upload" data-tip-key="image" data-tip="Insert image">
-      🖼<input id="imageInput" type="file" accept="image/*" />
-    </label>
+    <button id="linkBtn" class="tbtn" title="Insert link">🔗</button>
+    <label class="tbtn upload" title="Insert image">🖼<input id="imgInput" type="file" accept="image/*" /></label>
 
-    <div class="toolbar-spacer"></div>
-
-    <button id="findBtn" class="btn" data-tip-key="find" data-tip="Find & replace">Find</button>
-    <button id="undoBtn" class="btn" data-tip-key="undo" data-tip="Undo (Ctrl/Cmd+Z)">↶</button>
-    <button id="redoBtn" class="btn" data-tip-key="redo" data-tip="Redo (Ctrl/Cmd+Y)">↷</button>
-
-    <button id="printBtn" class="btn ghost" data-tip-key="print" data-tip="Print document">Print</button>
+    <div class="toolbar-right">
+      <button id="findBtn" class="btn" title="Find">Find</button>
+      <button id="exportBtn" class="btn" title="Export TXT / Backup">Export</button>
+      <button id="importBtn" class="btn" title="Import TXT / Backup">Import</button>
+      <button id="printBtn" class="btn" title="Print">Print</button>
+      <button id="manageBtn" class="btn" title="Manage shared links">Shared Links</button>
+    </div>
   </div>
 
   <!-- Layout -->
@@ -94,15 +82,14 @@
     <aside id="sidebar" class="sidebar">
       <div class="sidebar-head">
         <div>Documents</div>
-        <div>
-          <button id="importBtn" class="small">Import</button>
-          <button id="exportBtn" class="small">Export</button>
+        <div class="small-actions">
+          <button id="newSide" class="small">+ New</button>
         </div>
       </div>
       <div id="docsList" class="docs-list"></div>
     </aside>
 
-    <!-- Editor page -->
+    <!-- Editor -->
     <main class="main">
       <div id="page" class="page">
         <div id="editor" class="editor" contenteditable="true" spellcheck="true" placeholder="Start writing..."></div>
@@ -110,7 +97,7 @@
 
       <footer class="statusbar">
         <div id="stats">0 words · 0 chars</div>
-        <div id="zoomLabel">100%</div>
+        <div id="madeby">Made by Riyajul Ali</div>
       </footer>
     </main>
   </div>
@@ -118,10 +105,10 @@
   <!-- Share Modal -->
   <div id="shareModal" class="modal hidden">
     <div class="modal-card">
-      <h3>Share Document</h3>
+      <h3>Share document</h3>
 
       <div class="form-row">
-        <label>Expiry
+        <label>Expires in:
           <select id="shareExpiry">
             <option value="0">Never</option>
             <option value="1">1 day</option>
@@ -132,72 +119,74 @@
       </div>
 
       <div class="form-row">
-        <label><input id="sharePublic" type="checkbox" /> Public link (no password)</label>
+        <label><input id="sharePublic" type="checkbox" /> Public (no password)</label>
       </div>
 
-      <div class="form-row" id="passRow">
-        <label>Password
-          <input id="sharePassword" type="password" placeholder="Enter password for private link (required)" />
+      <div class="form-row" id="passwordRow">
+        <label>Password:
+          <input id="sharePassword" type="password" placeholder="Enter password for private link" />
         </label>
       </div>
 
       <div class="row actions">
-        <button id="generateShareBtn" class="primary">Generate Link</button>
+        <button id="genShare" class="primary">Generate</button>
         <button class="ghost" onclick="closeModal('shareModal')">Cancel</button>
       </div>
 
       <hr />
 
-      <div id="shareResult" class="share-result hidden">
-        <label>Share URL</label>
+      <div id="shareResult" class="hidden">
+        <label>URL</label>
         <input id="shareUrl" readonly />
         <div class="row actions">
-          <button id="copyShareBtn" class="small">Copy</button>
+          <button id="copyShare" class="small">Copy</button>
           <button class="ghost" onclick="closeModal('shareModal')">Close</button>
         </div>
-        <div id="shareMeta" class="meta"></div>
+        <div id="shareInfo" class="meta"></div>
       </div>
     </div>
   </div>
 
-  <!-- Manage Shared Links Modal -->
+  <!-- Manage shared links -->
   <div id="manageModal" class="modal hidden">
     <div class="modal-card">
-      <h3>Shared Links</h3>
+      <h3>Shared links</h3>
       <div id="sharedList" class="shared-list"></div>
-      <div class="row actions"><button class="ghost" onclick="closeModal('manageModal')">Close</button></div>
-    </div>
-  </div>
-
-  <!-- Password modal (open shared link) -->
-  <div id="passwordModal" class="modal hidden">
-    <div class="modal-card">
-      <h3>Enter Password</h3>
-      <div class="form-row">
-        <input id="openPassword" type="password" placeholder="Password" />
-      </div>
       <div class="row actions">
-        <button id="openPwdBtn" class="primary">Open</button>
-        <button class="ghost" onclick="closeModal('passwordModal')">Cancel</button>
+        <button class="ghost" onclick="closeModal('manageModal')">Close</button>
       </div>
     </div>
   </div>
 
-  <!-- Viewer overlay for shared doc -->
-  <div id="viewerOverlay" class="viewer hidden">
+  <!-- Viewer (open shared) -->
+  <div id="viewer" class="modal hidden">
     <div class="viewer-card">
       <div class="viewer-head">
-        <div id="viewerTitle">Shared Document</div>
+        <div id="viewerTitle">Shared document</div>
         <div>
-          <button id="viewerSaveBtn" class="small">Save Copy</button>
-          <button class="ghost" id="viewerCloseBtn">Close</button>
+          <button id="viewerSave" class="small">Save copy</button>
+          <button class="ghost" onclick="closeModal('viewer')">Close</button>
         </div>
       </div>
       <div id="viewerContent" class="viewer-content"></div>
     </div>
   </div>
 
-  <!-- Toasts & Tooltip -->
+  <!-- Password modal for opening private share -->
+  <div id="pwModal" class="modal hidden">
+    <div class="modal-card">
+      <h3>Enter password</h3>
+      <div class="form-row">
+        <input id="openPassword" type="password" placeholder="Password" />
+      </div>
+      <div class="row actions">
+        <button id="openShareBtn" class="primary">Open</button>
+        <button class="ghost" onclick="closeModal('pwModal')">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toaster and tooltip -->
   <div id="toasts" class="toasts"></div>
   <div id="tooltip" class="tooltip hidden"></div>
 </body>
