@@ -1,17 +1,17 @@
-/* app.js — AnonDocs core logic
-   - Docs stored in localStorage
-   - Shared links stored in localStorage
-   - Private share = AES encrypted (CryptoJS)
-   - Public share = base64 encoded JSON
+/* script.js - AnonDocs final core
+   - docs and shared links in localStorage
+   - private share = AES (CryptoJS), public share = base64
+   - fixed print (prints only document content)
+   - import/export (txt and json backup)
+   - themes (hacker, dark, cyber, light)
+   - tooltips shown on hover (anytime)
+   - footer "Made by Riyajul Ali"
 */
 
-/* --------------------------
-   Utilities & Storage keys
-   -------------------------- */
-const DOCS_KEY = 'anon_docs_v2';
-const LINKS_KEY = 'anon_shared_v2';
-const TIPS_KEY = 'anon_tips_v2';
-const THEME_KEY = 'anon_theme_v2';
+/* ---------- storage keys & utilities ---------- */
+const DOCS_KEY = 'anondocs_docs_v1';
+const LINKS_KEY = 'anondocs_links_v1';
+const THEME_KEY = 'anondocs_theme_v1';
 
 const $ = s => document.querySelector(s);
 const $$ = s => document.querySelectorAll(s);
@@ -22,445 +22,373 @@ function toast(msg, ms=2200){
   $('#toasts').appendChild(t); setTimeout(()=> t.remove(), ms);
 }
 async function copyToClipboard(text){
-  try { await navigator.clipboard.writeText(text); return true; }
-  catch(e){
-    try { const ta=document.createElement('textarea'); ta.value=text; ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); return true; }
-    catch(e2){ return false; }
-  }
+  try { await navigator.clipboard.writeText(text); return true; } catch(e){}
+  try { const ta = document.createElement('textarea'); ta.value=text; ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); return true; } catch(e){ return false; }
 }
 function sanitize(html){ return String(html).replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, ''); }
 function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[c])); }
 
-/* --------------------------
-   Load / Save models
-   -------------------------- */
+/* ---------- models ---------- */
 let docs = JSON.parse(localStorage.getItem(DOCS_KEY) || '{}');
-let sharedLinks = JSON.parse(localStorage.getItem(LINKS_KEY) || '[]');
+let shared = JSON.parse(localStorage.getItem(LINKS_KEY) || '[]');
 let currentId = null;
-const editor = $('#editor');
 
-/* --------------------------
-   Init on DOM ready
-   -------------------------- */
+/* ---------- elements ---------- */
+const editor = $('#editor');
+const docsList = $('#docsList');
+const titleInput = $('#titleInput');
+
+/* ---------- boot ---------- */
 window.addEventListener('DOMContentLoaded', () => {
   bindUI();
-  applySavedTheme();
-  renderDocsList();
-  handleIncomingShared(); // open shared link if present
-  // if no docs create one
-  if(Object.keys(docs).length === 0) createNewDoc();
+  applyTheme(localStorage.getItem(THEME_KEY) || 'hacker');
+  if(!Object.keys(docs).length) createDoc();
   else {
-    // load most recent
     const ids = Object.keys(docs).sort((a,b)=> (docs[b].updated||0)-(docs[a].updated||0));
-    if(ids.length) loadDoc(ids[0]);
+    loadDoc(ids[0]);
   }
+  handleSharedOpen();
   updateStats();
 });
 
-/* --------------------------
-   UI Bindings
-   -------------------------- */
+/* ---------- UI binding ---------- */
 function bindUI(){
-  // Top actions
-  $('#menuToggle').addEventListener('click', ()=> $('#sidebar').classList.toggle('open'));
-  $('#newBtn').addEventListener('click', createNewDoc);
-  $('#saveBtn').addEventListener('click', saveCurrentDoc);
-  $('#shareBtn').addEventListener('click', openShareModal);
-  $('#themeSelect').value = localStorage.getItem(THEME_KEY) || 'dark';
-  $('#themeSelect').addEventListener('change', e => { setTheme(e.target.value); });
+  $('#menuToggle').onclick = ()=> $('#sidebar').classList.toggle('open');
+  $('#newBtn').onclick = createDoc;
+  $('#newSide').onclick = createDoc;
+  $('#saveBtn').onclick = saveDoc;
+  $('#shareBtn').onclick = openShareModal;
 
-  // Toolbar formatting handlers (buttons w/ data-cmd)
-  $$('#toolbar [data-cmd]').forEach(btn => {
-    btn.addEventListener('click', ()=> doCmd(btn.dataset.cmd));
-    btn.addEventListener('mouseenter', showFirstTip);
-  });
+  $('#themeSelect').value = localStorage.getItem(THEME_KEY) || 'hacker';
+  $('#themeSelect').onchange = e => { applyTheme(e.target.value); };
 
-  // other toolbar controls
-  $('#fontFamily').addEventListener('change', e => doCmd('fontName', e.target.value));
-  $('#fontSize').addEventListener('change', e => doCmd('fontSize', e.target.value));
-  $('#blockFormat').addEventListener('change', e => doCmd('formatBlock', e.target.value));
-  $('#textColor').addEventListener('change', e => doCmd('foreColor', e.target.value));
-  $('#highlightColor').addEventListener('change', e => doCmd('hiliteColor', e.target.value));
-  $('#linkBtn').addEventListener('click', insertLink);
-  $('#imageInput').addEventListener('change', insertImage);
-  $('#findBtn').addEventListener('click', openFindDialog);
+  $('#fontSelect').onchange = e => { $('#editor').style.fontFamily = e.target.value; };
 
-  $('#undoBtn').addEventListener('click', ()=> doCmd('undo'));
-  $('#redoBtn').addEventListener('click', ()=> doCmd('redo'));
-  $('#printBtn').addEventListener('click', printDocument);
+  // toolbar actions
+  $$('#toolbar [data-cmd]').forEach(b => b.onclick = ()=> execCmd(b.dataset.cmd));
+  $('#blockSelect').onchange = e => execCmd('formatBlock', e.target.value);
+  $('#foreColor').onchange = e => execCmd('foreColor', e.target.value);
+  $('#hiliteColor').onchange = e => execCmd('hiliteColor', e.target.value);
+  $('#linkBtn').onclick = insertLink;
+  $('#imgInput').onchange = insertImage;
 
-  // Share modal
-  $('#sharePublic').addEventListener('change', ()=> {
-    $('#passRow').style.display = $('#sharePublic').checked ? 'none' : 'block';
-  });
-  $('#generateShareBtn').addEventListener('click', generateShare);
-  $('#copyShareBtn').addEventListener('click', ()=> {
-    const url = $('#shareUrl').value; copyToClipboard(url).then(ok=> toast(ok? 'Copied' : 'Copy failed'));
-  });
+  $('#findBtn').onclick = ()=> openFind();
+  $('#exportBtn').onclick = exportDoc;
+  $('#importBtn').onclick = ()=> openImport();
+  $('#printBtn').onclick = tryPrint;
+  $('#manageBtn').onclick = openManageModal;
 
-  // Manage modal open
-  $('#manageBtn') && $('#manageBtn').addEventListener('click', ()=> openManageModal());
-  $('#shareBtn') && $('#shareBtn').addEventListener('mouseenter', showFirstTip);
+  // share modal
+  $('#sharePublic').onchange = ()=> { $('#passwordRow').style.display = $('#sharePublic').checked ? 'none':'block'; };
+  $('#genShare').onclick = generateShare;
+  $('#copyShare').onclick = ()=> { copyToClipboard($('#shareUrl').value).then(ok => toast(ok?'Copied':'Copy failed')); };
 
-  // editor events
-  editor.addEventListener('input', ()=> { scheduleAutosave(); updateStats(); });
-  editor.addEventListener('keydown', (e)=>{
-    const mod = e.ctrlKey || e.metaKey;
-    if(mod && e.key.toLowerCase() === 's'){ e.preventDefault(); saveCurrentDoc(); }
-    if(mod && e.key.toLowerCase() === 'b'){ e.preventDefault(); doCmd('bold'); }
-    if(mod && e.key.toLowerCase() === 'k'){ e.preventDefault(); insertLink(); }
+  // editor
+  editor.oninput = ()=> { scheduleAutosave(); updateStats(); };
+  editor.addEventListener('keydown', (ev)=> {
+    const mod = ev.ctrlKey || ev.metaKey;
+    if(mod && ev.key.toLowerCase() === 's'){ ev.preventDefault(); saveDoc(); }
+    if(mod && ev.key.toLowerCase() === 'k'){ ev.preventDefault(); insertLink(); }
   });
 
   // title change
-  $('#titleInput').addEventListener('input', e => {
-    if(!currentId) return;
-    docs[currentId].title = e.target.value || 'Untitled';
-    docs[currentId].updated = now();
-    persistDocs();
-    renderDocsList();
+  titleInput.oninput = ()=> { if(!currentId) return; docs[currentId].title = titleInput.value || 'Untitled'; docs[currentId].updated = now(); persistDocs(); renderDocsList(); };
+
+  // tooltips (anytime on hover)
+  $$('[title]').forEach(el=>{
+    el.addEventListener('mouseenter', (e)=> showTooltip(e.currentTarget.title, e.currentTarget));
+    el.addEventListener('mouseleave', hideTooltip);
   });
 
-  // image input hover tooltip
-  $$('#toolbar [data-tip]').forEach(el => el.addEventListener('mouseenter', showFirstTip));
+  // viewer save
+  $('#viewerSave') && $('#viewerSave').addEventListener('click', ()=> {
+    const content = $('#viewerContent').innerHTML;
+    const id = String(now());
+    docs[id] = { id, title: $('#viewerTitle').textContent || 'Shared copy', content, created: now(), updated: now() };
+    persistDocs(); renderDocsList(); loadDoc(id); closeModal('viewer'); toast('Saved local copy');
+  });
 }
 
-/* --------------------------
-   Commands & Editor utilities
-   -------------------------- */
-function doCmd(cmd, val=null){
-  document.execCommand(cmd, false, val);
-  editor.focus();
-}
+/* ---------- editor commands ---------- */
+function execCmd(cmd, val=null){ document.execCommand(cmd, false, val); editor.focus(); }
 function insertLink(){
-  const url = prompt('Enter URL (include https://):');
+  const url = prompt('Enter URL (https://...)');
   if(!url) return;
-  document.execCommand('createLink', false, url);
+  execCmd('createLink', url);
 }
 function insertImage(e){
-  const file = e.target.files?.[0];
-  if(!file) return;
-  const reader = new FileReader();
-  reader.onload = () => {
-    const imgHtml = `<img src="${reader.result}" style="max-width:100%;height:auto;" />`;
-    document.execCommand('insertHTML', false, imgHtml);
-    toast('Image inserted');
-  };
-  reader.readAsDataURL(file);
-  e.target.value = '';
+  const f = e.target.files?.[0]; if(!f) return;
+  const r = new FileReader();
+  r.onload = ()=> execCmd('insertHTML', `<img src="${r.result}" style="max-width:100%"/>`);
+  r.readAsDataURL(f); e.target.value = '';
 }
 
-/* --------------------------
-   Docs CRUD
-   -------------------------- */
+/* ---------- docs CRUD ---------- */
 function persistDocs(){ localStorage.setItem(DOCS_KEY, JSON.stringify(docs)); }
-function persistLinks(){ localStorage.setItem(LINKS_KEY, JSON.stringify(sharedLinks)); }
+function persistLinks(){ localStorage.setItem(LINKS_KEY, JSON.stringify(shared)); }
 
-function createNewDoc(){
+function createDoc(){
   const id = String(now());
   docs[id] = { id, title: 'Untitled', content: '', created: now(), updated: now() };
-  persistDocs();
-  renderDocsList();
-  loadDoc(id);
-  toast('New document');
+  persistDocs(); renderDocsList(); loadDoc(id); toast('New document');
 }
-
 function renderDocsList(){
-  const wrap = $('#docsList'); wrap.innerHTML = '';
+  docsList.innerHTML = '';
   const arr = Object.values(docs).sort((a,b)=> (b.updated||0)-(a.updated||0));
-  arr.forEach(d => {
-    const item = document.createElement('div'); item.className='doc-item'; item.textContent = d.title;
-    item.addEventListener('click', ()=> loadDoc(d.id));
-    if(d.id === currentId) item.classList.add('active');
-    wrap.appendChild(item);
+  arr.forEach(d=>{
+    const el = document.createElement('div'); el.className='doc-item'; el.textContent = d.title;
+    el.onclick = ()=> loadDoc(d.id);
+    if(d.id === currentId) el.classList.add('active');
+    docsList.appendChild(el);
   });
 }
-
 function loadDoc(id){
   const d = docs[id]; if(!d) return;
-  currentId = id;
-  editor.innerHTML = d.content || '';
-  $('#titleInput').value = d.title || 'Untitled';
-  renderDocsList();
-  updateStats();
+  currentId = id; editor.innerHTML = d.content || ''; titleInput.value = d.title || 'Untitled';
+  renderDocsList(); updateStats();
 }
-
-function saveCurrentDoc(){
-  if(!currentId){ createNewDoc(); return; }
+function saveDoc(){
+  if(!currentId) createDoc();
   docs[currentId].content = sanitize(editor.innerHTML);
-  docs[currentId].title = $('#titleInput').value || deriveTitle(docs[currentId].content) || 'Untitled';
+  docs[currentId].title = titleInput.value || deriveTitle(docs[currentId].content) || 'Untitled';
   docs[currentId].updated = now();
-  persistDocs();
-  renderDocsList();
-  toast('Saved');
+  persistDocs(); renderDocsList(); toast('Saved');
 }
-function deriveTitle(html){
-  const text = (html || '').replace(/<[^>]+>/g,' ').trim();
-  return (text.split('\n')[0] || '').slice(0,60);
-}
+function deriveTitle(html){ const txt = (html||'').replace(/<[^>]+>/g,' ').trim(); return (txt.split('\n')[0]||'').slice(0,60); }
 
-/* Autosave */
-let autosaveTimer = null;
+/* autosave */
+let autoTimer = null;
 function scheduleAutosave(){
-  $('#statusBadge').textContent = 'Saving...'; $('#statusBadge').style.opacity = 1;
-  clearTimeout(autosaveTimer);
-  autosaveTimer = setTimeout(()=> {
-    saveCurrentDoc();
-    $('#statusBadge').textContent = 'Saved'; $('#statusBadge').style.opacity = 0.7;
-  }, 900);
+  $('#statusBadge') && ($('#statusBadge').textContent = 'Saving...');
+  clearTimeout(autoTimer);
+  autoTimer = setTimeout(()=> { saveDoc(); $('#statusBadge') && ($('#statusBadge').textContent='Saved'); }, 900);
 }
 
-/* --------------------------
-   Stats
-   -------------------------- */
+/* ---------- stats ---------- */
 function updateStats(){
-  const txt = (editor.innerText || '').trim();
-  const words = txt ? (txt.match(/\S+/g) || []).length : 0;
-  const chars = txt.replace(/\s/g, '').length;
+  const text = (editor.innerText || '').trim();
+  const words = text ? (text.match(/\S+/g) || []).length : 0;
+  const chars = text.replace(/\s/g,'').length;
   $('#stats').textContent = `${words} words · ${chars} chars`;
 }
-setInterval(updateStats, 1000);
+setInterval(updateStats, 1200);
 
-/* --------------------------
-   Print only content
-   -------------------------- */
-function printDocument(){
+/* ---------- print ---------- */
+function tryPrint(){
+  // Detect small screens and hide print if not feasible
+  if(window.innerWidth < 600){
+    // On small mobile devices printing is unreliable — show message and remove button
+    toast('Printing is limited on mobile devices. Use desktop for print.');
+    return;
+  }
   const content = sanitize(editor.innerHTML);
-  const title = escapeHtml($('#titleInput').value || 'Document');
+  const title = escapeHtml(titleInput.value || 'Document');
+  const popup = window.open('', '_blank', 'noopener');
+  if(!popup){ alert('Popup blocked. Allow popups to print.'); return; }
   const html = `<!doctype html><html><head><meta charset="utf-8"><title>${title}</title>
-    <style>body{font-family:system-ui,Arial;padding:20px;color:#111}img{max-width:100%;height:auto}</style></head><body>${content}</body></html>`;
-  const w = window.open('', '_blank', 'noopener');
-  if(!w){ alert('Popup blocked — allow popups to use print.'); return; }
-  w.document.open(); w.document.write(html); w.document.close();
-  w.onload = ()=> { w.focus(); w.print(); };
+    <style>
+      body{font-family:system-ui, Arial; color:#111; padding:20px;}
+      img{max-width:100%; height:auto;}
+    </style></head><body>${content}</body></html>`;
+  popup.document.open(); popup.document.write(html); popup.document.close();
+  popup.onload = ()=> { popup.focus(); popup.print(); };
 }
 
-/* --------------------------
-   Sharing: create link, manage links
-   -------------------------- */
+/* ---------- export / import ---------- */
+function exportDoc(){
+  if(!currentId){ toast('No document to export'); return; }
+  // two downloads: txt of current doc and backup of all docs as JSON
+  const text = editor.innerText;
+  downloadFile(`${(titleInput.value||'document').replace(/\s+/g,'_')}.txt`, text, 'text/plain');
+  // JSON backup
+  downloadFile(`anondocs_backup_${Date.now()}.json`, JSON.stringify(docs, null, 2), 'application/json');
+  toast('Export started');
+}
+function downloadFile(name, content, type){
+  const blob = new Blob([content], {type});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = name; a.click();
+  URL.revokeObjectURL(url);
+}
+function openImport(){
+  const input = document.createElement('input'); input.type='file';
+  input.accept='.txt,application/json,text/plain';
+  input.onchange = e => {
+    const f = e.target.files[0]; if(!f) return;
+    const r = new FileReader();
+    r.onload = ()=> {
+      try {
+        if(f.type === 'application/json'){
+          // treat as backup (merge)
+          const data = JSON.parse(r.result);
+          docs = {...docs, ...data};
+          persistDocs(); renderDocsList(); toast('Backup imported');
+        } else {
+          // txt: replace current doc content
+          if(!currentId) createDoc();
+          editor.innerText = r.result;
+          saveDoc();
+          toast('Imported text into current document');
+        }
+      } catch(err){ alert('Failed to import: ' + err.message); }
+    };
+    r.readAsText(f);
+  };
+  input.click();
+}
+
+/* ---------- sharing (public/base64 & private/AES) ---------- */
 function openShareModal(){
-  if(!currentId){ alert('Please create or save a document first.'); return; }
+  if(!currentId){ toast('Save a document first'); return; }
   $('#shareExpiry').value = '7';
   $('#sharePublic').checked = false;
   $('#sharePassword').value = '';
-  $('#passRow').style.display = 'block';
   $('#shareResult').classList.add('hidden');
   openModal('shareModal');
 }
-
 function generateShare(){
   const days = Number($('#shareExpiry').value);
   const isPublic = $('#sharePublic').checked;
   const pwd = $('#sharePassword').value;
-
-  if(!isPublic && !pwd){ alert('Private links require a password.'); return; }
+  if(!isPublic && !pwd){ alert('Private links require a password'); return; }
 
   const payload = {
-    title: $('#titleInput').value || 'Untitled',
+    title: titleInput.value || 'Untitled',
     html: sanitize(editor.innerHTML),
     docId: currentId,
-    createdAt: now(),
-    expiresAt: days>0 ? now() + days*24*60*60*1000 : null
+    created: now(),
+    expires: days > 0 ? now() + days*24*60*60*1000 : null
   };
 
   let encoded = '';
   if(isPublic){
     encoded = 'PUB:' + btoa(JSON.stringify(payload));
   } else {
-    // encrypt with password
     encoded = 'PRV:' + CryptoJS.AES.encrypt(JSON.stringify(payload), pwd).toString();
   }
-  const shareUrl = `${location.origin}${location.pathname}?shared=${encodeURIComponent(encoded)}`;
+  const url = `${location.origin}${location.pathname}?shared=${encodeURIComponent(encoded)}`;
 
-  // save record
-  const rec = {
-    id: String(now()), docId: currentId, url: shareUrl, public: isPublic, createdAt: payload.createdAt, expiresAt: payload.expiresAt
-  };
-  sharedLinks.unshift(rec);
+  // save shared record
+  const rec = { id: String(now()), url, public: isPublic, created: payload.created, expires: payload.expires, docId: currentId };
+  shared.unshift(rec);
   persistLinks();
 
-  // show result & copy
-  $('#shareUrl').value = shareUrl;
-  $('#shareMeta').textContent = `Expires: ${payload.expiresAt ? new Date(payload.expiresAt).toLocaleString() : 'Never'} · ${isPublic ? 'Public' : 'Private'}`;
+  $('#shareUrl').value = url;
+  $('#shareInfo').textContent = `Expires: ${payload.expires ? new Date(payload.expires).toLocaleString() : 'Never'} · ${isPublic? 'Public':'Private'}`;
   $('#shareResult').classList.remove('hidden');
 
-  copyToClipboard(shareUrl).then(ok => toast(ok? 'Link copied to clipboard' : 'Could not auto-copy — use copy button'));
+  copyToClipboard(url).then(ok => toast(ok? 'Link copied to clipboard' : 'Auto-copy failed'));
 }
 
-/* Manage links UI */
-function openManageModal(){
-  renderSharedList();
-  openModal('manageModal');
-}
+/* manage shared */
+function openManageModal(){ renderSharedList(); openModal('manageModal'); }
 function renderSharedList(){
   const wrap = $('#sharedList'); wrap.innerHTML = '';
-  if(!sharedLinks.length){ wrap.innerHTML = '<div class="muted">No shared links yet</div>'; return; }
-  sharedLinks.forEach(rec => {
+  if(!shared.length){ wrap.innerHTML = '<div style="color:var(--muted)">No shared links</div>'; return; }
+  shared.forEach(r=>{
     const item = document.createElement('div'); item.className='shared-item';
-    const left = document.createElement('div'); left.innerHTML = `<div style="font-weight:600">${escapeHtml(docs[rec.docId]?.title || '(deleted)')}</div>
-      <div style="font-size:12px;color:var(--muted)">Created: ${new Date(rec.createdAt).toLocaleString()} · Expires: ${rec.expiresAt? new Date(rec.expiresAt).toLocaleString():'Never'}</div>`;
+    const left = document.createElement('div'); left.innerHTML = `<div style="font-weight:600">${escapeHtml(docs[r.docId]?.title || '(deleted)')}</div>
+      <div style="font-size:12px;color:var(--muted)">Created: ${new Date(r.created).toLocaleString()} · Expires: ${r.expires? new Date(r.expires).toLocaleString() : 'Never'}</div>`;
     const right = document.createElement('div');
-    const copyBtn = document.createElement('button'); copyBtn.className='small'; copyBtn.textContent='Copy';
-    copyBtn.onclick = ()=> { copyToClipboard(rec.url).then(ok => toast(ok?'Copied':'Copy failed')); };
-    const openBtn = document.createElement('button'); openBtn.className='small ghost'; openBtn.textContent='Open';
-    openBtn.onclick = ()=> window.open(rec.url, '_blank');
-    const toggleBtn = document.createElement('button'); toggleBtn.className='small'; toggleBtn.textContent = rec.public ? 'Make Private' : 'Make Public';
-    toggleBtn.onclick = ()=> togglePublicLink(rec.id);
-    const revokeBtn = document.createElement('button'); revokeBtn.className='small ghost'; revokeBtn.textContent='Revoke';
-    revokeBtn.onclick = ()=> { if(confirm('Revoke link?')) { revokeLink(rec.id); } };
-
-    right.appendChild(copyBtn); right.appendChild(openBtn); right.appendChild(toggleBtn); right.appendChild(revokeBtn);
-    item.appendChild(left); item.appendChild(right);
-    wrap.appendChild(item);
+    const copyBtn = makeBtn('Copy', ()=> copyToClipboard(r.url).then(ok => toast(ok?'Copied':'Copy failed')));
+    const openBtn = makeBtn('Open', ()=> window.open(r.url, '_blank'));
+    const toggleBtn = makeBtn(r.public? 'Make Private' : 'Make Public', ()=> togglePublic(r.id));
+    const revokeBtn = makeBtn('Revoke', ()=> { if(confirm('Revoke link?')) { revokeLink(r.id); } }, 'ghost');
+    [copyBtn, openBtn, toggleBtn, revokeBtn].forEach(b => right.appendChild(b));
+    item.appendChild(left); item.appendChild(right); wrap.appendChild(item);
   });
 }
-
-function togglePublicLink(id){
-  const rec = sharedLinks.find(r=> r.id === id);
-  if(!rec) return;
-  const doc = docs[rec.docId];
-  if(!doc){ alert('Original document not found'); return; }
-  const payload = { title: doc.title, html: doc.content, docId: doc.id, createdAt: now(), expiresAt: rec.expiresAt };
-
+function makeBtn(text, fn, cls='') { const b = document.createElement('button'); b.className = 'small ' + cls; b.textContent = text; b.onclick = fn; return b; }
+function togglePublic(id){
+  const rec = shared.find(s=>s.id===id); if(!rec) return;
+  const doc = docs[rec.docId]; if(!doc){ alert('Original missing'); return; }
+  const payload = { title: doc.title, html: doc.content, docId: doc.id, created: now(), expires: rec.expires };
   if(rec.public){
-    // make private -> require password
     const pwd = prompt('Set password for private link:');
     if(!pwd) return;
     const enc = 'PRV:' + CryptoJS.AES.encrypt(JSON.stringify(payload), pwd).toString();
-    rec.url = `${location.origin}${location.pathname}?shared=${encodeURIComponent(enc)}`;
-    rec.public = false;
+    rec.url = `${location.origin}${location.pathname}?shared=${encodeURIComponent(enc)}`; rec.public = false;
   } else {
-    // make public
     const b = 'PUB:' + btoa(JSON.stringify(payload));
-    rec.url = `${location.origin}${location.pathname}?shared=${encodeURIComponent(b)}`;
-    rec.public = true;
+    rec.url = `${location.origin}${location.pathname}?shared=${encodeURIComponent(b)}`; rec.public = true;
   }
   persistLinks(); renderSharedList(); toast('Link updated');
 }
-function revokeLink(id){
-  sharedLinks = sharedLinks.filter(r => r.id !== id);
-  persistLinks(); renderSharedList(); toast('Link revoked');
-}
+function revokeLink(id){ shared = shared.filter(s => s.id !== id); persistLinks(); renderSharedList(); toast('Link revoked'); }
 
-/* --------------------------
-   Handle incoming shared link
-   -------------------------- */
-let incomingPayload = null;
-function handleIncomingShared(){
+/* ---------- handle incoming shared link ---------- */
+function handleSharedOpen(){
   const params = new URLSearchParams(location.search);
-  const s = params.get('shared');
-  if(!s) return;
-  const decoded = decodeURIComponent(s);
-  if(decoded.startsWith('PUB:')){
-    try {
-      const payload = JSON.parse(atob(decoded.slice(4)));
-      if(payload.expiresAt && now() > payload.expiresAt){ alert('This shared link has expired.'); return; }
-      showSharedViewer(payload, false);
-    } catch(e){
-      alert('Invalid public share link.');
-    }
-  } else if(decoded.startsWith('PRV:')){
-    incomingPayload = decoded.slice(4); // cipher text
-    // open password modal
-    openModal('passwordModal');
-    $('#openPwdBtn').onclick = ()=> {
-      const pwd = $('#openPassword').value;
-      if(!pwd) return;
+  const s = params.get('shared'); if(!s) return;
+  const raw = decodeURIComponent(s);
+  if(raw.startsWith('PUB:')){
+    try { const payload = JSON.parse(atob(raw.slice(4))); if(payload.expires && now() > payload.expires){ alert('Expired'); return; } showViewer(payload); } catch(e){ alert('Invalid public link'); }
+  } else if(raw.startsWith('PRV:')){
+    // ask password
+    openModal('pwModal');
+    $('#openShareBtn').onclick = ()=> {
+      const pwd = $('#openPassword').value; if(!pwd) return;
       try {
-        const bytes = CryptoJS.AES.decrypt(incomingPayload, pwd);
+        const bytes = CryptoJS.AES.decrypt(raw.slice(4), pwd);
         const json = bytes.toString(CryptoJS.enc.Utf8);
-        if(!json) throw new Error('bad');
-        const payload = JSON.parse(json);
-        if(payload.expiresAt && now() > payload.expiresAt){ alert('This shared link has expired.'); closeModal('passwordModal'); return; }
-        closeModal('passwordModal');
-        showSharedViewer(payload, true);
-      } catch(e){
-        alert('Incorrect password or corrupted link.');
-      }
+        if(!json) throw new Error('bad'); const payload = JSON.parse(json);
+        if(payload.expires && now() > payload.expires){ alert('Expired'); closeModal('pwModal'); return; }
+        closeModal('pwModal'); showViewer(payload);
+      } catch(e){ alert('Wrong password or corrupted link'); }
     };
-  } else {
-    // not recognized
-  }
+  } else { /* nothing */ }
 }
-
-/* Show shared viewer overlay */
-function showSharedViewer(payload, wasPrivate){
-  $('#viewerTitle').textContent = payload.title || 'Shared Document';
+function showViewer(payload){
+  $('#viewerTitle').textContent = payload.title || 'Shared';
   $('#viewerContent').innerHTML = sanitize(payload.html || '');
-  $('#viewerOverlay').classList.remove('hidden');
-  $('#viewerCloseBtn').onclick = ()=> $('#viewerOverlay').classList.add('hidden');
-  $('#viewerSaveBtn').onclick = ()=> {
-    const id = String(now());
-    docs[id] = { id, title: payload.title || 'Shared copy', content: sanitize(payload.html || ''), created: now(), updated: now() };
-    persistDocs(); renderDocsList(); loadDoc(id); toast('Saved local copy'); $('#viewerOverlay').classList.add('hidden');
-  };
+  openModal('viewer');
 }
 
-/* --------------------------
-   Modals open/close
-   -------------------------- */
+/* ---------- UI helpers ---------- */
 function openModal(id){ $(`#${id}`).classList.remove('hidden'); }
 function closeModal(id){ $(`#${id}`).classList.add('hidden'); }
+function makeId(){ return String(now()) }
+function persistDocs(){ localStorage.setItem(DOCS_KEY, JSON.stringify(docs)); }
+function persistLinks(){ localStorage.setItem(LINKS_KEY, JSON.stringify(shared)); }
 
-/* --------------------------
-   Theme
-   -------------------------- */
-function setTheme(t){
-  if(!t) t = localStorage.getItem(THEME_KEY) || 'dark';
-  document.documentElement.classList.remove('light','colored');
-  if(t === 'light') document.documentElement.classList.add('light');
-  if(t === 'colored') document.documentElement.classList.add('colored');
-  localStorage.setItem(THEME_KEY, t);
-}
-function applySavedTheme(){ setTheme(localStorage.getItem(THEME_KEY) || 'dark'); }
-
-/* --------------------------
-   Tooltip (first time per key)
-   -------------------------- */
-function showFirstTip(e){
-  const el = e.currentTarget;
-  const key = el.dataset.tipKey;
-  const txt = el.dataset.tip;
-  if(!key || !txt) return;
-  const shown = JSON.parse(localStorage.getItem(TIPS_KEY) || '{}');
-  if(shown[key]) return;
-  const rect = el.getBoundingClientRect();
-  const tip = $('#tooltip');
-  tip.textContent = txt; tip.style.top = (rect.bottom + 8 + window.scrollY) + 'px';
-  tip.style.left = (rect.left + (rect.width/2) - 120 + window.scrollX) + 'px';
-  tip.classList.remove('hidden'); setTimeout(()=> tip.classList.add('hidden'), 4200);
-  shown[key] = true; localStorage.setItem(TIPS_KEY, JSON.stringify(shown));
+/* ---------- theme ---------- */
+function applyTheme(name){
+  document.documentElement.classList.remove('hacker','dark','cyber','light');
+  if(!name) name = 'hacker';
+  const map = { hacker:'hacker', dark:'', cyber:'cyber', light:'light' };
+  if(name === 'dark') { /* default dark is root default */ document.documentElement.classList.remove('light','cyber','hacker'); }
+  else document.documentElement.classList.add(map[name]);
+  localStorage.setItem(THEME_KEY, name);
 }
 
-/* --------------------------
-   Find (simple UX: selection)
-   -------------------------- */
-function openFindDialog(){
-  const term = prompt('Find (enter text):');
-  if(!term) return;
-  const idx = editor.innerText.indexOf(term);
-  if(idx === -1){ toast('Not found'); return; }
+/* ---------- find (simple) ---------- */
+function openFind(){
+  const term = prompt('Find (text):'); if(!term) return;
+  const idx = editor.innerText.indexOf(term); if(idx === -1){ toast('Not found'); return; }
   selectTextByIndex(idx, term.length);
 }
 function selectTextByIndex(start, len){
   const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
-  let node, pos=0, startNode, endNode, startOffset, endOffset;
+  let node, pos=0, sNode, eNode, sOff, eOff;
   while(node = walker.nextNode()){
     const next = pos + node.textContent.length;
-    if(startNode == null && start >= pos && start < next){ startNode = node; startOffset = start - pos; }
-    if(startNode && (start+len) <= next){ endNode = node; endOffset = (start+len) - pos; break; }
+    if(!sNode && start >= pos && start < next){ sNode = node; sOff = start - pos; }
+    if(sNode && (start+len) <= next){ eNode = node; eOff = (start+len) - pos; break; }
     pos = next;
   }
-  if(startNode && endNode){
-    const r = document.createRange(); r.setStart(startNode, startOffset); r.setEnd(endNode, endOffset);
-    const s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
-  }
+  if(sNode && eNode){ const r = document.createRange(); r.setStart(sNode,sOff); r.setEnd(eNode,eOff); const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r); }
 }
 
-/* --------------------------
-   Helpers: revoke, persist
-   -------------------------- */
-function persistLinks(){ localStorage.setItem(LINKS_KEY, JSON.stringify(sharedLinks)); }
+/* ---------- small helpers ---------- */
+function makeBtnEl(txt, cls=''){ const b=document.createElement('button'); b.className='small '+cls; b.textContent=txt; return b; }
+function deriveTitleFromContent(html){ return (html||'').replace(/<[^>]+>/g,' ').trim().split('\n')[0]?.slice(0,60) || 'Untitled'; }
+function showTooltip(text, el){
+  const tip = $('#tooltip'); tip.textContent = text; tip.style.top = (el.getBoundingClientRect().bottom + 8 + window.scrollY) + 'px';
+  tip.style.left = (el.getBoundingClientRect().left + (el.getBoundingClientRect().width/2) - 110 + window.scrollX) + 'px'; tip.classList.remove('hidden');
+}
+function hideTooltip(){ $('#tooltip').classList.add('hidden'); }
 
-/* --------------------------
-   End of file
-   -------------------------- */
+/* ---------- End ----------
+   All features implemented client-side.
+   Notes: If you want central shared-link persistence across devices, add a small backend.
+*/
