@@ -12,16 +12,15 @@
   <script src="script.js" defer></script>
 </head>
 <body>
-  <!-- Top bar -->
   <header class="topbar">
     <div class="left">
-      <button id="menuToggle" class="icon" title="Toggle documents sidebar">☰</button>
+      <button id="menuToggle" class="icon" title="Toggle sidebar">☰</button>
       <div class="brand">AnonDocs</div>
-      <input id="titleInput" class="title" placeholder="Untitled (click to rename)" />
+      <input id="titleInput" class="title" placeholder="Untitled — click to rename" />
     </div>
 
     <div class="right">
-      <select id="themeSelect" title="Theme" class="theme-select">
+      <select id="themeSelect" class="theme-select" title="Theme">
         <option value="hacker">Hacker (Green)</option>
         <option value="dark">Dark</option>
         <option value="cyber">Cyber Blue</option>
@@ -29,20 +28,19 @@
       </select>
 
       <select id="fontSelect" title="Font">
-        <option value="Inter, system-ui, sans-serif">Inter</option>
+        <option value="Inter, system-ui, -apple-system, 'Segoe UI', Roboto">Inter</option>
         <option value="Arial, Helvetica, sans-serif">Arial</option>
-        <option value="'Fira Code', 'Courier New', monospace">Fira Code (mono)</option>
-        <option value="'Source Code Pro', 'Courier New', monospace">Source Code Pro (mono)</option>
+        <option value="'Fira Code', 'Courier New', monospace">Fira Code (Mono)</option>
+        <option value="'Source Code Pro', 'Courier New', monospace">Source Code Pro (Mono)</option>
         <option value="'Courier New', monospace">Courier New</option>
       </select>
 
       <button id="newBtn" class="btn" title="New document">New</button>
-      <button id="saveBtn" class="btn" title="Save">Save</button>
-      <button id="shareBtn" class="btn primary" title="Share">Share</button>
+      <button id="saveBtn" class="btn" title="Save (Ctrl/Cmd+S)">Save</button>
+      <button id="shareBtn" class="btn primary" title="Share document">Share</button>
     </div>
   </header>
 
-  <!-- Toolbar -->
   <div class="toolbar" id="toolbar">
     <select id="blockSelect" title="Paragraph / Headings">
       <option value="P">Normal</option>
@@ -51,48 +49,54 @@
       <option value="H3">Heading 3</option>
     </select>
 
-    <button data-cmd="bold" class="tbtn" title="Bold">B</button>
-    <button data-cmd="italic" class="tbtn" title="Italic">I</button>
-    <button data-cmd="underline" class="tbtn" title="Underline">U</button>
-    <button data-cmd="strikeThrough" class="tbtn" title="Strike">S</button>
+    <select id="fontSize" title="Font size">
+      <option value="2">Small</option>
+      <option value="3" selected>Normal</option>
+      <option value="4">Large</option>
+      <option value="5">X-Large</option>
+      <option value="6">Huge</option>
+    </select>
+
+    <button class="tbtn" data-cmd="bold" title="Bold (Ctrl/Cmd+B)"><b>B</b></button>
+    <button class="tbtn" data-cmd="italic" title="Italic (Ctrl/Cmd+I)"><i>I</i></button>
+    <button class="tbtn" data-cmd="underline" title="Underline (Ctrl/Cmd+U)"><u>U</u></button>
+    <button class="tbtn" data-cmd="strikeThrough" title="Strike-through"><s>S</s></button>
 
     <input id="foreColor" type="color" title="Text color" />
-    <input id="hiliteColor" type="color" title="Highlight" />
+    <input id="hiliteColor" type="color" title="Highlight color" />
 
-    <button data-cmd="insertUnorderedList" class="tbtn" title="Bulleted list">•</button>
-    <button data-cmd="insertOrderedList" class="tbtn" title="Numbered list">1.</button>
-    <button data-cmd="outdent" class="tbtn" title="Outdent">«</button>
-    <button data-cmd="indent" class="tbtn" title="Indent">»</button>
+    <button class="tbtn" data-cmd="insertUnorderedList" title="Bulleted list">•</button>
+    <button class="tbtn" data-cmd="insertOrderedList" title="Numbered list">1.</button>
+    <button class="tbtn" data-cmd="outdent" title="Outdent">«</button>
+    <button class="tbtn" data-cmd="indent" title="Indent">»</button>
 
-    <button id="linkBtn" class="tbtn" title="Insert link">🔗</button>
-    <label class="tbtn upload" title="Insert image">🖼<input id="imgInput" type="file" accept="image/*" /></label>
+    <button id="linkBtn" class="tbtn" title="Insert link (Ctrl/Cmd+K)">🔗</button>
+    <label class="tbtn upload" title="Insert image (file)">
+      🖼 <input id="imgInput" type="file" accept="image/*" />
+    </label>
 
     <div class="toolbar-right">
       <button id="findBtn" class="btn" title="Find">Find</button>
-      <button id="exportBtn" class="btn" title="Export TXT / Backup">Export</button>
-      <button id="importBtn" class="btn" title="Import TXT / Backup">Import</button>
-      <button id="printBtn" class="btn" title="Print">Print</button>
+      <button id="exportBtn" class="btn" title="Export TXT & Backup">Export</button>
+      <button id="importBtn" class="btn" title="Import TXT or Backup JSON">Import</button>
+      <button id="printBtn" class="btn" title="Print document">Print</button>
       <button id="manageBtn" class="btn" title="Manage shared links">Shared Links</button>
     </div>
   </div>
 
-  <!-- Layout -->
   <div class="layout">
-    <!-- Sidebar -->
     <aside id="sidebar" class="sidebar">
       <div class="sidebar-head">
         <div>Documents</div>
-        <div class="small-actions">
-          <button id="newSide" class="small">+ New</button>
-        </div>
+        <div><button id="newSide" class="small" title="New document">+ New</button></div>
       </div>
       <div id="docsList" class="docs-list"></div>
     </aside>
 
-    <!-- Editor -->
     <main class="main">
       <div id="page" class="page">
-        <div id="editor" class="editor" contenteditable="true" spellcheck="true" placeholder="Start writing..."></div>
+        <div id="editor" class="editor" contenteditable="true" spellcheck="true"
+             placeholder="Start writing your private document..."></div>
       </div>
 
       <footer class="statusbar">
@@ -108,7 +112,7 @@
       <h3>Share document</h3>
 
       <div class="form-row">
-        <label>Expires in:
+        <label>Expires:
           <select id="shareExpiry">
             <option value="0">Never</option>
             <option value="1">1 day</option>
@@ -136,7 +140,7 @@
       <hr />
 
       <div id="shareResult" class="hidden">
-        <label>URL</label>
+        <label>Share URL</label>
         <input id="shareUrl" readonly />
         <div class="row actions">
           <button id="copyShare" class="small">Copy</button>
@@ -158,7 +162,7 @@
     </div>
   </div>
 
-  <!-- Viewer (open shared) -->
+  <!-- Viewer for shared doc -->
   <div id="viewer" class="modal hidden">
     <div class="viewer-card">
       <div class="viewer-head">
@@ -172,7 +176,7 @@
     </div>
   </div>
 
-  <!-- Password modal for opening private share -->
+  <!-- Private open password -->
   <div id="pwModal" class="modal hidden">
     <div class="modal-card">
       <h3>Enter password</h3>
@@ -186,7 +190,7 @@
     </div>
   </div>
 
-  <!-- Toaster and tooltip -->
+  <!-- Toasts & tooltip -->
   <div id="toasts" class="toasts"></div>
   <div id="tooltip" class="tooltip hidden"></div>
 </body>
